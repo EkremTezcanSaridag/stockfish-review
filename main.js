@@ -1,5 +1,5 @@
-// Import chess.js from ESM CDN
-import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/+esm';
+// Import chess.js from local vendor (same-origin, no CDN dependency)
+import { Chess } from './vendor/chess.mjs';
 
 // Global state
 let stockfish = null;
@@ -481,8 +481,10 @@ function moveLast() {
     highlightCurrentMove();
 }
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', () => {
+// Setup UI - all button listeners and initial state
+function setupUI() {
+    console.log('[stockfish-review] setupUI called');
+    
     // Sample button
     document.getElementById('sample-btn').addEventListener('click', () => {
         document.getElementById('pgn-input').value = SAMPLE_PGN;
@@ -557,4 +559,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show input section initially
     showSection('input');
-});
+}
+
+// Fix DOMContentLoaded race condition in ES modules
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupUI);
+} else {
+    // Document already loaded, setup immediately
+    setupUI();
+}

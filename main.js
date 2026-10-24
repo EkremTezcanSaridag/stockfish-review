@@ -33,19 +33,65 @@ const TURKISH_LABELS = {
     blunder: 'Vahim'
 };
 
-// Move sound (simple beep encoded as data URI)
-const MOVE_SOUND = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYHGGS16+ihUhELTqbi8bllHAU2jdXvyoAtBiV7xvDdkUEKE2G56+mjUxIJRp/g8r5sIQYug8/y2Ik2BxhktOvooVIRC06m4vG5ZRwGN47V78qALgUlgMXw3ZFBCRVgu+vqpFQSCUWf4PK+bSIFLYPP8tmJNgcYY7Tr6KFSEQxPpuLxuWUcBjiOVO/KgC4EJoHE8N2RQQkVYLvr6qRUEglFn+Dyvmw=');
+// Web Audio API wood-tap sound generator
+function createWoodTapSound() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    return function playTap() {
+        if (!soundEnabled) return;
+        
+        const now = audioContext.currentTime;
+        
+        // Wood tap has a sharp attack with quick decay
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(150, now);
+        oscillator.frequency.exponentialRampToValueAtTime(80, now + 0.02);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start(now);
+        oscillator.stop(now + 0.08);
+    };
+}
+
+let playWoodTap = null;
 
 // Simple chess board renderer with better styled pieces
 class SimpleBoard {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.position = null;
+        this.highlightSquare = null;
+        this.classificationBadge = null;
         this.render();
     }
 
     setPosition(fen) {
         this.position = this.parseFen(fen);
+        this.render();
+    }
+
+    setHighlight(from, to, classification = null) {
+        this.highlightSquare = { from, to };
+        this.classificationBadge = classification;
+        this.render();
+    }
+
+    clearHighlight() {
+        this.highlightSquare = null;
+        this.classificationBadge = null;
         this.render();
     }
 
@@ -76,6 +122,12 @@ class SimpleBoard {
         return board;
     }
 
+    getSquareNotation(row, col) {
+        const file = String.fromCharCode(97 + col); // a-h
+        const rank = 8 - row; // 8-1
+        return file + rank;
+    }
+
     render() {
         if (!this.container) return;
         
@@ -90,11 +142,20 @@ class SimpleBoard {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
                 square.className = 'board-square';
+                square.dataset.square = this.getSquareNotation(row, col);
                 
                 if ((row + col) % 2 === 0) {
                     square.classList.add('light');
                 } else {
                     square.classList.add('dark');
+                }
+
+                // Highlight last move
+                const squareNotation = this.getSquareNotation(row, col);
+                if (this.highlightSquare) {
+                    if (squareNotation === this.highlightSquare.from || squareNotation === this.highlightSquare.to) {
+                        square.classList.add('highlight');
+                    }
                 }
                 
                 const piece = this.position[row][col];
@@ -106,10 +167,33 @@ class SimpleBoard {
                     pieceImg.draggable = false;
                     square.appendChild(pieceImg);
                 }
+
+                // Add classification badge on destination square
+                if (this.classificationBadge && squareNotation === this.highlightSquare?.to) {
+                    const badge = document.createElement('div');
+                    badge.className = 'square-badge badge-' + this.classificationBadge;
+                    badge.innerHTML = this.getClassificationIcon(this.classificationBadge);
+                    square.appendChild(badge);
+                }
                 
                 this.container.appendChild(square);
             }
         }
+    }
+
+    getClassificationIcon(classification) {
+        const icons = {
+            brilliant: '!!',
+            great: '!',
+            best: '✓',
+            excellent: '✓',
+            good: '✓',
+            book: '📖',
+            inaccuracy: '?',
+            mistake: '?!',
+            blunder: '??'
+        };
+        return icons[classification] || '';
     }
 }
 
@@ -117,9 +201,8 @@ let board = null;
 
 // Play move sound
 function playMoveSound() {
-    if (soundEnabled && MOVE_SOUND) {
-        MOVE_SOUND.currentTime = 0;
-        MOVE_SOUND.play().catch(() => {});
+    if (playWoodTap) {
+        playWoodTap();
     }
 }
 
@@ -520,7 +603,11 @@ function jumpToMove(index) {
         currentMoveIndex = i;
     }
 
+    const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
+    if (result && result.move) {
+        board.setHighlight(result.move.from, result.move.to, result.classification);
+    }
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -580,6 +667,7 @@ function moveFirst() {
     game.reset();
     currentMoveIndex = -1;
     board.setPosition(game.fen());
+    board.clearHighlight();
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -596,6 +684,12 @@ function movePrevious() {
     }
     
     board.setPosition(game.fen());
+    if (currentMoveIndex >= 0) {
+        const result = analysisResults[currentMoveIndex];
+        board.setHighlight(result.move.from, result.move.to, result.classification);
+    } else {
+        board.clearHighlight();
+    }
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -606,7 +700,9 @@ function moveNext() {
     
     currentMoveIndex++;
     game.move(moveHistory[currentMoveIndex]);
+    const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
+    board.setHighlight(result.move.from, result.move.to, result.classification);
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -620,7 +716,9 @@ function moveLast() {
     }
     
     currentMoveIndex = moveHistory.length - 1;
+    const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
+    board.setHighlight(result.move.from, result.move.to, result.classification);
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -629,6 +727,13 @@ function moveLast() {
 // Setup UI
 function setupUI() {
     console.log('[stockfish-review] setupUI called');
+    
+    // Initialize wood tap sound
+    try {
+        playWoodTap = createWoodTapSound();
+    } catch (e) {
+        console.warn('[stockfish-review] Audio context not available:', e);
+    }
     
     try {
         board = new SimpleBoard('board');

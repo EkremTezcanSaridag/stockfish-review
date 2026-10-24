@@ -60,11 +60,13 @@ function initStockfish() {
         }
 
         try {
-            const workerUrl = 'https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js';
+            // Use same-origin worker (vendored in repo)
+            const workerUrl = new URL('./vendor/stockfish.js', import.meta.url);
             stockfish = new Worker(workerUrl);
             
             const readyTimeout = setTimeout(() => {
                 if (!stockfishReady) {
+                    console.error('[stockfish-review] Stockfish initialization timeout');
                     reject(new Error('Stockfish başlatma zaman aşımı'));
                 }
             }, 10000);
@@ -76,6 +78,7 @@ function initStockfish() {
                 } else if (message === 'readyok' && !stockfishReady) {
                     stockfishReady = true;
                     clearTimeout(readyTimeout);
+                    console.log('[stockfish-review] Stockfish ready');
                     resolve();
                 }
             };
@@ -83,12 +86,14 @@ function initStockfish() {
             stockfish.onerror = (error) => {
                 clearTimeout(readyTimeout);
                 stockfishReady = false;
+                console.error('[stockfish-review] Stockfish worker error:', error.message || error);
                 reject(new Error('Stockfish yüklenemedi. Lütfen sayfayı yenileyin.'));
             };
 
             stockfish.postMessage('uci');
         } catch (error) {
             stockfishReady = false;
+            console.error('[stockfish-review] Stockfish initialization failed:', error);
             reject(new Error('Stockfish başlatılamadı: ' + error.message));
         }
     });

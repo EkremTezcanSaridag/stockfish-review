@@ -10,14 +10,9 @@ let currentMoveIndex = -1;
 let analysisResults = [];
 let moveHistory = [];
 let stockfishReady = false;
+let soundEnabled = true;
 
-// Unicode chess pieces
-const PIECES = {
-    wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
-    bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
-};
-
-// Sample PGN for demo (12 moves = 24 plies)
+// Sample PGN for demo (ONLY used when "Örnek Oyun Yükle" clicked)
 const SAMPLE_PGN = `[Event "Sample Game"]
 [Site "Chess.com"]
 
@@ -25,7 +20,29 @@ const SAMPLE_PGN = `[Event "Sample Game"]
 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7 
 11. Nbd2 Bb7 12. Bc2 Re8`;
 
-// Simple chess board renderer
+// Turkish classification labels
+const TURKISH_LABELS = {
+    brilliant: 'Muhteşem',
+    great: 'Harika', 
+    best: 'En iyi',
+    excellent: 'Mükemmel',
+    good: 'İyi',
+    book: 'Kitap',
+    inaccuracy: 'Yanlış',
+    mistake: 'Hata',
+    blunder: 'Vahim'
+};
+
+// Simple piece images using CSS symbols (better than unicode)
+const PIECE_SYMBOLS = {
+    wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+    bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
+};
+
+// Move sound (simple beep encoded as data URI)
+const MOVE_SOUND = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYHGGS16+ihUhELTqbi8bllHAU2jdXvyoAtBiV7xvDdkUEKE2G56+mjUxIJRp/g8r5sIQYug8/y2Ik2BxhktOvooVIRC06m4vG5ZRwGN47V78qALgUlgMXw3ZFBCRVgu+vqpFQSCUWf4PK+bSIFLYPP8tmJNgcYY7Tr6KFSEQxPpuLxuWUcBjiOVO/KgC4EJoHE8N2RQQkVYLvr6qRUEglFn+Dyvmw=');
+
+// Simple chess board renderer with better styled pieces
 class SimpleBoard {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
@@ -80,7 +97,6 @@ class SimpleBoard {
                 const square = document.createElement('div');
                 square.className = 'board-square';
                 
-                // Alternate colors
                 if ((row + col) % 2 === 0) {
                     square.classList.add('light');
                 } else {
@@ -90,8 +106,8 @@ class SimpleBoard {
                 const piece = this.position[row][col];
                 if (piece) {
                     const pieceEl = document.createElement('div');
-                    pieceEl.className = 'piece';
-                    pieceEl.textContent = PIECES[piece] || '';
+                    pieceEl.className = 'piece ' + (piece[0] === 'w' ? 'white-piece' : 'black-piece');
+                    pieceEl.textContent = PIECE_SYMBOLS[piece] || '';
                     square.appendChild(pieceEl);
                 }
                 
@@ -102,6 +118,14 @@ class SimpleBoard {
 }
 
 let board = null;
+
+// Play move sound
+function playMoveSound() {
+    if (soundEnabled && MOVE_SOUND) {
+        MOVE_SOUND.currentTime = 0;
+        MOVE_SOUND.play().catch(() => {});
+    }
+}
 
 // Toast notifications
 function showToast(message, type = 'info', duration = 5000) {
@@ -140,7 +164,6 @@ function initStockfish() {
         }
 
         try {
-            // Use same-origin worker (vendored in repo)
             const workerUrl = new URL('./vendor/stockfish.js', import.meta.url);
             stockfish = new Worker(workerUrl);
             
@@ -254,20 +277,9 @@ function classifyMove(cpLoss, wasBestMove, prevEval, currentEval) {
     return 'blunder';
 }
 
-// Get classification label
+// Get Turkish classification label
 function getClassificationLabel(classification) {
-    const labels = {
-        brilliant: 'Brilliant',
-        great: 'Great',
-        best: 'Best',
-        excellent: 'Excellent',
-        good: 'Good',
-        book: 'Book',
-        inaccuracy: 'Inaccuracy',
-        mistake: 'Mistake',
-        blunder: 'Blunder'
-    };
-    return labels[classification] || classification;
+    return TURKISH_LABELS[classification] || classification;
 }
 
 // Calculate accuracy
@@ -311,13 +323,31 @@ function showSection(section) {
     document.getElementById('results-section').style.display = section === 'results' ? 'block' : 'none';
 }
 
-// Analyze game
-async function analyzeGame(pgn, depth = 12) {
+// Strip clock times and comments from PGN
+function cleanPgn(pgn) {
+    // Remove clock times like {[%clk 0:05:00]}
+    pgn = pgn.replace(/\{\[%clk[^\]]+\]\}/g, '');
+    // Remove comments
+    pgn = pgn.replace(/\{[^}]*\}/g, '');
+    // Remove annotations
+    pgn = pgn.replace(/\$\d+/g, '');
+    return pgn.trim();
+}
+
+// Analyze game - CRITICAL: ONLY analyzes the pgn parameter passed in
+async function analyzeGame(pgnInput, depth = 12) {
+    console.log('[stockfish-review] analyzeGame called with PGN length:', pgnInput.length);
+    console.log('[stockfish-review] PGN preview:', pgnInput.substring(0, 100));
+    
+    // CRITICAL: Clean and use ONLY the input PGN, never fallback to SAMPLE_PGN
+    const cleanedPgn = cleanPgn(pgnInput);
+    
     game = new Chess();
     
     try {
-        game.loadPgn(pgn);
+        game.loadPgn(cleanedPgn);
     } catch (error) {
+        console.error('[stockfish-review] PGN load error:', error);
         throw new Error('Geçersiz PGN formatı. Lütfen kontrol edin.');
     }
 
@@ -329,7 +359,8 @@ async function analyzeGame(pgn, depth = 12) {
     }
 
     const totalMoves = moveHistory.length;
-    console.log(`[stockfish-review] Analyzing ${totalMoves} plies (half-moves)`);
+    const fullMoves = Math.ceil(totalMoves / 2);
+    console.log(`[stockfish-review] Analyzing ${totalMoves} plies (${fullMoves} full moves)`);
 
     game.reset();
     let prevEval = 0;
@@ -429,7 +460,6 @@ function displayResults() {
                 details.appendChild(document.createElement('br'));
             }
             
-            // Convert UCI to SAN if possible
             let bestMoveText = result.bestMove;
             try {
                 const tempGame = new Chess(result.fenBefore);
@@ -437,9 +467,7 @@ function displayResults() {
                 if (moveObj) {
                     bestMoveText = moveObj.san;
                 }
-            } catch (e) {
-                // Keep UCI format if conversion fails
-            }
+            } catch (e) {}
             
             const suggestionSpan = document.createElement('span');
             suggestionSpan.className = 'move-suggestion';
@@ -459,7 +487,6 @@ function displayResults() {
     game.reset();
     currentMoveIndex = -1;
     
-    // Ensure board exists and set position
     try {
         if (!board) {
             board = new SimpleBoard('board');
@@ -475,7 +502,6 @@ function displayResults() {
     updatePositionInfo();
     showSection('results');
     
-    // Force second render after section is visible (fixes display:none layout issues)
     setTimeout(() => {
         try {
             if (board) {
@@ -501,6 +527,7 @@ function jumpToMove(index) {
     board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
+    playMoveSound();
 }
 
 function highlightCurrentMove() {
@@ -559,6 +586,7 @@ function moveFirst() {
     board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
+    playMoveSound();
 }
 
 function movePrevious() {
@@ -574,6 +602,7 @@ function movePrevious() {
     board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
+    playMoveSound();
 }
 
 function moveNext() {
@@ -584,6 +613,7 @@ function moveNext() {
     board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
+    playMoveSound();
 }
 
 function moveLast() {
@@ -597,13 +627,13 @@ function moveLast() {
     board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
+    playMoveSound();
 }
 
-// Setup UI - all button listeners and initial state
+// Setup UI
 function setupUI() {
     console.log('[stockfish-review] setupUI called');
     
-    // Initialize board early (hidden, will be shown after analysis)
     try {
         board = new SimpleBoard('board');
         console.log('[stockfish-review] Board initialized in setupUI');
@@ -611,10 +641,11 @@ function setupUI() {
         console.error('[stockfish-review] Board init failed:', e);
     }
     
-    // Sample button
+    // Sample button - ONLY way to load SAMPLE_PGN
     document.getElementById('sample-btn').addEventListener('click', () => {
         document.getElementById('pgn-input').value = SAMPLE_PGN;
-        showToast('Örnek oyun yüklendi (12 hamle)', 'success', 3000);
+        const moves = SAMPLE_PGN.split(/\d+\./).filter(m => m.trim()).length;
+        showToast(`Örnek oyun yüklendi: Ruy Lopez (12 hamle / 24 yarı-hamle)`, 'success', 3000);
     });
 
     // Clear button
@@ -622,15 +653,29 @@ function setupUI() {
         document.getElementById('pgn-input').value = '';
     });
 
+    // Sound toggle
+    const soundToggle = document.createElement('button');
+    soundToggle.className = 'btn btn-secondary';
+    soundToggle.innerHTML = '<span>🔊 Ses açık</span>';
+    soundToggle.style.marginLeft = 'auto';
+    soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundToggle.innerHTML = soundEnabled ? '<span>🔊 Ses açık</span>' : '<span>🔇 Ses kapalı</span>';
+    });
+    document.querySelector('.button-group').appendChild(soundToggle);
+
     // Board controls
     document.getElementById('start-btn').addEventListener('click', moveFirst);
     document.getElementById('prev-btn').addEventListener('click', movePrevious);
     document.getElementById('next-btn').addEventListener('click', moveNext);
     document.getElementById('end-btn').addEventListener('click', moveLast);
 
-    // Analyze button
+    // Analyze button - CRITICAL: reads textarea ONLY
     document.getElementById('analyze-btn').addEventListener('click', async () => {
         const pgn = document.getElementById('pgn-input').value.trim();
+        
+        console.log('[stockfish-review] Analyze button clicked');
+        console.log('[stockfish-review] Textarea PGN length:', pgn.length);
         
         if (!pgn) {
             showToast('Lütfen PGN yapıştırın veya örnek oyun yükleyin', 'error');
@@ -647,7 +692,6 @@ function setupUI() {
             updateLoadingText('Stockfish hazırlanıyor...');
             updateProgress(0);
 
-            // Initialize Stockfish if not ready
             if (!stockfishReady) {
                 try {
                     await initStockfish();
@@ -659,9 +703,13 @@ function setupUI() {
             const depth = parseInt(document.getElementById('depth-select').value);
             updateLoadingText('Oyun analiz ediliyor...');
             
+            // CRITICAL: Pass textarea PGN directly to analyzeGame
             await analyzeGame(pgn, depth);
+            
+            const plies = analysisResults.length;
+            const fullMoves = Math.ceil(plies / 2);
             displayResults();
-            showToast('Analiz tamamlandı!', 'success', 3000);
+            showToast(`Analiz tamamlandı! ${fullMoves} hamle / ${plies} yarı-hamle`, 'success', 3000);
 
         } catch (error) {
             showToast(error.message, 'error');
@@ -683,14 +731,12 @@ function setupUI() {
         showToast('Analiz iptal edildi', 'info', 3000);
     });
 
-    // Show input section initially
     showSection('input');
 }
 
-// Fix DOMContentLoaded race condition in ES modules
+// Fix DOMContentLoaded race condition
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupUI);
 } else {
-    // Document already loaded, setup immediately
     setupUI();
 }

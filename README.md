@@ -14,100 +14,64 @@ Chess.com tarzı **ücretsiz** satranç oyun analizi aracı. Stockfish WASM moto
 
 ## 🚀 Hızlı Başlangıç
 
-### Yerel Olarak Çalıştırma
+### Canlı Siteyi Kullanın
 
-1. **Bağımlılıkları yükleyin:**
-   ```bash
-   npm install
-   ```
-
-2. **Geliştirme sunucusunu başlatın:**
-   ```bash
-   npm run dev
-   ```
-
-3. Tarayıcınızda `http://localhost:5173` adresini açın
-
-### Derleme (Production)
-
-```bash
-npm run build
+Direkt olarak şu adresten kullanabilirsiniz:
+```
+https://ekremtezcansaridag.github.io/stockfish-review/
 ```
 
-Bu komut `dist/` klasöründe production-ready dosyalar oluşturur.
+### Yerel Olarak Çalıştırma
+
+**Build gerekmez!** Sadece dosyaları açın:
+
+1. **Doğrudan tarayıcıda:**
+   - `index.html` dosyasını çift tıklayarak açın
+   - Veya Live Server gibi basit bir HTTP sunucusu kullanın
+
+2. **Python ile (önerilir):**
+   ```bash
+   python -m http.server 8000
+   ```
+   Sonra http://localhost:8000 adresini açın
+
+3. **Node.js ile:**
+   ```bash
+   npx serve .
+   ```
+
+### Geliştirme İçin (Opsiyonel)
+
+Vite dev server kullanmak isterseniz:
+
+```bash
+npm install
+npm run dev
+```
 
 ## 📦 GitHub Pages'e Deploy Etme
 
-### Yöntem 1: GitHub Actions (Otomatik)
+Bu uygulama **statik dosyalar** olarak çalışır - build gerekmez!
+
+### Deployment Adımları:
 
 1. Repository ayarlarına gidin: **Settings → Pages**
-2. **Source** olarak **GitHub Actions** seçin
-3. Aşağıdaki workflow dosyasını oluşturun: `.github/workflows/deploy.yml`
+2. **Source** olarak **"Deploy from a branch"** seçin
+3. **Branch**: `main` seçin
+4. **Folder**: `/ (root)` seçin
+5. **Save** butonuna tıklayın
 
-```yaml
-name: Deploy to GitHub Pages
-
-on:
-  push:
-    branches: ['main']
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install dependencies
-        run: npm install
-      
-      - name: Build
-        run: npm run build
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: \${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+Hepsi bu! Siteniz birkaç saniye içinde yayında olacak:
+```
+https://KULLANICI_ADI.github.io/REPO_ADI/
 ```
 
-4. `main` branch'ine push yaptığınızda otomatik deploy olacaktır
+### Neden Build Yok?
 
-### Yöntem 2: Manuel Deploy
-
-```bash
-npm run build
-cd dist
-git init
-git add -A
-git commit -m 'deploy'
-git push -f git@github.com:KULLANICI_ADI/REPO_ADI.git main:gh-pages
-```
+- Tüm bağımlılıklar CDN'den yüklenir (chess.js, chessboard.js)
+- Modern JavaScript kullanılır ama ES6 modülleri yok
+- Doğrudan tarayıcıda çalışır
+- Vite/Webpack/Babel gerekmez
 
 ## 📖 Nasıl Kullanılır?
 

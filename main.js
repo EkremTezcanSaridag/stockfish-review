@@ -225,7 +225,7 @@ function analyzeGame(pgn, depth) {
     
     return new Promise(function(resolve, reject) {
         try {
-            game.loadPgn(pgn);
+            game.load_pgn(pgn);
         } catch (error) {
             reject(new Error('Geçersiz PGN formatı. Lütfen kontrol edin.'));
             return;

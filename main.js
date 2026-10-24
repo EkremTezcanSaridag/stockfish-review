@@ -33,12 +33,6 @@ const TURKISH_LABELS = {
     blunder: 'Vahim'
 };
 
-// Simple piece images using CSS symbols (better than unicode)
-const PIECE_SYMBOLS = {
-    wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
-    bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
-};
-
 // Move sound (simple beep encoded as data URI)
 const MOVE_SOUND = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYHGGS16+ihUhELTqbi8bllHAU2jdXvyoAtBiV7xvDdkUEKE2G56+mjUxIJRp/g8r5sIQYug8/y2Ik2BxhktOvooVIRC06m4vG5ZRwGN47V78qALgUlgMXw3ZFBCRVgu+vqpFQSCUWf4PK+bSIFLYPP8tmJNgcYY7Tr6KFSEQxPpuLxuWUcBjiOVO/KgC4EJoHE8N2RQQkVYLvr6qRUEglFn+Dyvmw=');
 
@@ -105,10 +99,12 @@ class SimpleBoard {
                 
                 const piece = this.position[row][col];
                 if (piece) {
-                    const pieceEl = document.createElement('div');
-                    pieceEl.className = 'piece ' + (piece[0] === 'w' ? 'white-piece' : 'black-piece');
-                    pieceEl.textContent = PIECE_SYMBOLS[piece] || '';
-                    square.appendChild(pieceEl);
+                    const pieceImg = document.createElement('img');
+                    pieceImg.className = 'piece';
+                    pieceImg.src = `./vendor/pieces/${piece}.svg`;
+                    pieceImg.alt = piece;
+                    pieceImg.draggable = false;
+                    square.appendChild(pieceImg);
                 }
                 
                 this.container.appendChild(square);

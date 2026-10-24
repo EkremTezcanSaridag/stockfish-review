@@ -1,0 +1,1 @@
+Creating simple SVG pieces inline in code to avoid CDN dependencies

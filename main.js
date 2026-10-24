@@ -293,10 +293,18 @@ function displayResults() {
             const details = document.createElement('div');
             details.className = 'move-details';
             
-            const cpLossText = result.cpLoss > 0 ? `Kayıp: ${result.cpLoss.toFixed(0)} centipawn` : '';
-            const bestMoveText = `En iyi hamle: ${result.bestMove}`;
+            // Use safe DOM APIs to prevent XSS
+            if (result.cpLoss > 0) {
+                const cpLossText = document.createTextNode(`Kayıp: ${result.cpLoss.toFixed(0)} centipawn`);
+                details.appendChild(cpLossText);
+                details.appendChild(document.createElement('br'));
+            }
             
-            details.innerHTML = `${cpLossText}<br><span class="move-suggestion">${bestMoveText}</span>`;
+            const suggestionSpan = document.createElement('span');
+            suggestionSpan.className = 'move-suggestion';
+            suggestionSpan.textContent = `En iyi hamle: ${result.bestMove}`;
+            details.appendChild(suggestionSpan);
+            
             moveItem.appendChild(details);
         }
 

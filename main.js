@@ -459,15 +459,33 @@ function displayResults() {
     game.reset();
     currentMoveIndex = -1;
     
-    // Create simple board
-    if (!board) {
-        board = new SimpleBoard('board');
-        console.log('[stockfish-review] Simple board initialized');
+    // Ensure board exists and set position
+    try {
+        if (!board) {
+            board = new SimpleBoard('board');
+            console.log('[stockfish-review] Board created in displayResults');
+        }
+        board.setPosition(game.fen());
+        console.log('[stockfish-review] Board position set');
+    } catch (error) {
+        console.error('[stockfish-review] Board error:', error);
+        showToast('Satranç tahtası yüklenemedi', 'error');
     }
-    board.setPosition(game.fen());
 
     updatePositionInfo();
     showSection('results');
+    
+    // Force second render after section is visible (fixes display:none layout issues)
+    setTimeout(() => {
+        try {
+            if (board) {
+                board.setPosition(game.fen());
+                console.log('[stockfish-review] Board re-rendered after section visible');
+            }
+        } catch (e) {
+            console.error('[stockfish-review] Board re-render failed:', e);
+        }
+    }, 50);
 }
 
 // Board navigation
@@ -584,6 +602,14 @@ function moveLast() {
 // Setup UI - all button listeners and initial state
 function setupUI() {
     console.log('[stockfish-review] setupUI called');
+    
+    // Initialize board early (hidden, will be shown after analysis)
+    try {
+        board = new SimpleBoard('board');
+        console.log('[stockfish-review] Board initialized in setupUI');
+    } catch (e) {
+        console.error('[stockfish-review] Board init failed:', e);
+    }
     
     // Sample button
     document.getElementById('sample-btn').addEventListener('click', () => {

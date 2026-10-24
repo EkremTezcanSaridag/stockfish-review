@@ -123,12 +123,11 @@
         <div id="toast-container"></div>
     </div>
 
-    <!-- Load dependencies from CDN -->
+    <!-- Load jQuery and chessboard from CDN -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
     
-    <!-- Load our app (no module, uses globals) -->
-    <script src="./main.js"></script>
+    <!-- Load our app as ES module -->
+    <script type="module" src="./main.js"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "chess.js": "^1.0.0-beta.8"
+    "chess.js": "^1.0.0-beta.8",
+    "stockfish.js": "^10.0.2"
   }
 }

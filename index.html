@@ -5,113 +5,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stockfish Oyun Analizi - Ücretsiz Satranç Analizi</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div id="app">
-        <header>
-            <h1>🎯 Stockfish Oyun Analizi</h1>
-            <p class="subtitle">Chess.com tarzı ücretsiz satranç oyun analizi</p>
+        <header class="app-header">
+            <div class="container">
+                <h1>Stockfish Oyun Analizi</h1>
+                <p class="subtitle">Ücretsiz profesyonel satranç analizi</p>
+            </div>
         </header>
 
-        <main>
-            <div class="input-section">
+        <main class="container">
+            <div id="input-section" class="card">
                 <h2>Oyun Yükle</h2>
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="pgn">PGN Yapıştır</button>
-                    <button class="tab-btn" data-tab="url">Chess.com URL</button>
+                
+                <div class="input-area">
+                    <textarea id="pgn-input" 
+                              placeholder="PGN formatında oyununuzu buraya yapıştırın...&#10;&#10;Örnek:&#10;[Event &quot;Casual Game&quot;]&#10;&#10;1. e4 e5 2. Nf3 Nc6 3. Bb5..."></textarea>
+                    
+                    <div class="button-group">
+                        <button id="sample-btn" class="btn btn-secondary">
+                            <span>Örnek Oyun Yükle</span>
+                        </button>
+                        <button id="clear-btn" class="btn btn-secondary">
+                            <span>Temizle</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="tab-content active" id="pgn-tab">
-                    <textarea id="pgn-input" placeholder="PGN formatında oyununuzu buraya yapıştırın...
-Örnek:
-[Event &quot;Casual Game&quot;]
-[Site &quot;Chess.com&quot;]
-[White &quot;player1&quot;]
-[Black &quot;player2&quot;]
-
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6..."></textarea>
-                </div>
-
-                <div class="tab-content" id="url-tab">
-                    <input type="text" id="url-input" placeholder="Chess.com oyun URL'si (örn: https://www.chess.com/game/live/123456789)">
-                    <p class="helper-text">
-                        <strong>Not:</strong> Chess.com URL'lerinden oyun yüklemek için:
-                        <br>1. Oyunu Chess.com'da açın
-                        <br>2. "Share" → "PGN" seçeneğine tıklayın
-                        <br>3. PGN'yi kopyalayıp yukarıdaki "PGN Yapıştır" sekmesine yapıştırın
-                        <br><small>(CORS kısıtlamaları nedeniyle doğrudan URL yükleme bazı tarayıcılarda çalışmayabilir)</small>
-                    </p>
-                </div>
-
-                <div class="analysis-options">
-                    <label>
-                        Analiz Derinliği:
+                <div class="options-row">
+                    <label class="depth-label">
+                        <span>Analiz Derinliği:</span>
                         <select id="depth-select">
-                            <option value="12">12 (Hızlı)</option>
-                            <option value="15" selected>15 (Önerilen)</option>
-                            <option value="18">18 (Yavaş ama daha iyi)</option>
-                            <option value="20">20 (En İyi)</option>
+                            <option value="10">10 (Çok Hızlı)</option>
+                            <option value="12" selected>12 (Hızlı - Önerilen)</option>
+                            <option value="15">15 (Orta)</option>
+                            <option value="18">18 (Yavaş)</option>
+                            <option value="20">20 (Çok Yavaş)</option>
                         </select>
                     </label>
                 </div>
 
-                <button id="analyze-btn" class="primary-btn">Analiz Et</button>
-                <button id="cancel-btn" class="secondary-btn" style="display: none;">İptal</button>
+                <div class="action-row">
+                    <button id="analyze-btn" class="btn btn-primary">
+                        <span>Analiz Et</span>
+                    </button>
+                    <button id="cancel-btn" class="btn btn-danger" style="display: none;">
+                        <span>İptal Et</span>
+                    </button>
+                </div>
+
+                <div id="chess-com-note" class="info-note">
+                    <strong>Chess.com kullanıcıları için:</strong> Oyununuzu Chess.com'da açın, 
+                    "Share" → "PGN" ile kopyalayın ve yukarıya yapıştırın.
+                </div>
+            </div>
+
+            <div id="loading-section" class="card" style="display: none;">
+                <div class="loading-content">
+                    <div class="spinner"></div>
+                    <h3 id="loading-text">Hazırlanıyor...</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <span id="progress-text" class="progress-text">0%</span>
+                    </div>
+                </div>
             </div>
 
             <div id="results-section" style="display: none;">
-                <div class="accuracy-section">
-                    <h2>Genel Doğruluk</h2>
-                    <div class="accuracy-stats">
-                        <div class="accuracy-box">
-                            <span class="player-name">Beyaz</span>
-                            <span class="accuracy-value" id="white-accuracy">-%</span>
+                <div class="results-grid">
+                    <div class="board-column">
+                        <div class="card">
+                            <h2>Satranç Tahtası</h2>
+                            <div id="board-wrapper">
+                                <div id="board"></div>
+                            </div>
+                            <div class="board-controls">
+                                <button id="start-btn" class="control-btn" title="Başa dön">⏮</button>
+                                <button id="prev-btn" class="control-btn" title="Önceki hamle">◀</button>
+                                <button id="next-btn" class="control-btn" title="Sonraki hamle">▶</button>
+                                <button id="end-btn" class="control-btn" title="Sona git">⏭</button>
+                            </div>
+                            <div id="position-info" class="position-info"></div>
                         </div>
-                        <div class="accuracy-box">
-                            <span class="player-name">Siyah</span>
-                            <span class="accuracy-value" id="black-accuracy">-%</span>
+                    </div>
+
+                    <div class="analysis-column">
+                        <div class="card accuracy-card">
+                            <h2>Doğruluk</h2>
+                            <div class="accuracy-grid">
+                                <div class="accuracy-item">
+                                    <span class="player-label">Beyaz</span>
+                                    <span class="accuracy-value" id="white-accuracy">-%</span>
+                                </div>
+                                <div class="accuracy-item">
+                                    <span class="player-label">Siyah</span>
+                                    <span class="accuracy-value" id="black-accuracy">-%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card moves-card">
+                            <h2>Hamleler</h2>
+                            <div class="eval-bar-container">
+                                <div id="eval-bar" class="eval-bar" data-eval="0.0"></div>
+                            </div>
+                            <div id="moves-list" class="moves-list"></div>
                         </div>
                     </div>
-                </div>
-
-                <div class="board-section">
-                    <h2>Satranç Tahtası</h2>
-                    <div id="board" style="width: 100%; max-width: 500px;"></div>
-                    <div class="board-controls">
-                        <button id="start-btn" class="control-btn">⏮️ Başlangıç</button>
-                        <button id="prev-btn" class="control-btn">◀️ Geri</button>
-                        <button id="next-btn" class="control-btn">▶️ İleri</button>
-                        <button id="end-btn" class="control-btn">⏭️ Son</button>
-                    </div>
-                    <div id="position-info" class="position-info"></div>
-                </div>
-
-                <div class="moves-section">
-                    <h2>Hamle Listesi</h2>
-                    <div class="eval-bar-container">
-                        <div id="eval-bar" class="eval-bar"></div>
-                    </div>
-                    <div id="moves-list" class="moves-list"></div>
-                </div>
-            </div>
-
-            <div id="loading-section" style="display: none;">
-                <div class="loading-spinner"></div>
-                <p id="loading-text">Stockfish hazırlanıyor...</p>
-                <div class="progress-bar">
-                    <div id="progress-fill" class="progress-fill"></div>
                 </div>
             </div>
         </main>
 
-        <footer>
-            <p>Stockfish WASM motoruyla ücretsiz satranç analizi. Chess.com aboneliği gerekmez.</p>
-        </footer>
+        <div id="toast-container"></div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
 </html>

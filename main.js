@@ -6,22 +6,102 @@ let stockfish = null;
 let analyzing = false;
 let cancelAnalysis = false;
 let game = null;
-let board = null;
 let currentMoveIndex = -1;
 let analysisResults = [];
 let moveHistory = [];
 let stockfishReady = false;
 
-// Sample PGN for demo
-const SAMPLE_PGN = `[Event "Live Chess"]
-[Site "Chess.com"]
-[White "Player1"]
-[Black "Player2"]
+// Unicode chess pieces
+const PIECES = {
+    wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+    bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
+};
 
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 
-8. c3 O-O 9. h3 Nb8 10. d4 Nbd7 11. Nbd2 Bb7 12. Bc2 Re8 13. Nf1 Bf8 
-14. Ng3 g6 15. a4 c5 16. d5 c4 17. Bg5 h6 18. Be3 Nc5 19. Qe2 h5 
-20. Nf1 Bg7 21. N1h2 Qc7 22. Bg5 Rf8 23. axb5 axb5 24. Rxa8 Rxa8`;
+// Sample PGN for demo (12 moves = 24 plies)
+const SAMPLE_PGN = `[Event "Sample Game"]
+[Site "Chess.com"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 
+6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7 
+11. Nbd2 Bb7 12. Bc2 Re8`;
+
+// Simple chess board renderer
+class SimpleBoard {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.position = null;
+        this.render();
+    }
+
+    setPosition(fen) {
+        this.position = this.parseFen(fen);
+        this.render();
+    }
+
+    parseFen(fen) {
+        const parts = fen.split(' ');
+        const rows = parts[0].split('/');
+        const board = [];
+        
+        for (let i = 0; i < 8; i++) {
+            const row = [];
+            let col = 0;
+            for (const char of rows[i]) {
+                if (char >= '1' && char <= '8') {
+                    const empty = parseInt(char);
+                    for (let j = 0; j < empty; j++) {
+                        row.push(null);
+                    }
+                    col += empty;
+                } else {
+                    const color = char === char.toUpperCase() ? 'w' : 'b';
+                    const piece = char.toUpperCase();
+                    row.push(color + piece);
+                    col++;
+                }
+            }
+            board.push(row);
+        }
+        return board;
+    }
+
+    render() {
+        if (!this.container) return;
+        
+        this.container.innerHTML = '';
+        this.container.className = 'simple-board';
+        
+        if (!this.position) {
+            this.position = this.parseFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+        }
+        
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const square = document.createElement('div');
+                square.className = 'board-square';
+                
+                // Alternate colors
+                if ((row + col) % 2 === 0) {
+                    square.classList.add('light');
+                } else {
+                    square.classList.add('dark');
+                }
+                
+                const piece = this.position[row][col];
+                if (piece) {
+                    const pieceEl = document.createElement('div');
+                    pieceEl.className = 'piece';
+                    pieceEl.textContent = PIECES[piece] || '';
+                    square.appendChild(pieceEl);
+                }
+                
+                this.container.appendChild(square);
+            }
+        }
+    }
+}
+
+let board = null;
 
 // Toast notifications
 function showToast(message, type = 'info', duration = 5000) {
@@ -248,10 +328,13 @@ async function analyzeGame(pgn, depth = 12) {
         throw new Error('PGN dosyasında hamle bulunamadı');
     }
 
+    const totalMoves = moveHistory.length;
+    console.log(`[stockfish-review] Analyzing ${totalMoves} plies (half-moves)`);
+
     game.reset();
     let prevEval = 0;
 
-    for (let i = 0; i < moveHistory.length; i++) {
+    for (let i = 0; i < totalMoves; i++) {
         if (cancelAnalysis) {
             throw new Error('Analiz iptal edildi');
         }
@@ -285,17 +368,19 @@ async function analyzeGame(pgn, depth = 12) {
             cpLoss: cpLoss,
             classification: classification,
             fen: afterFen,
+            fenBefore: fen,
             moveNumber: Math.floor(i / 2) + 1,
             isWhite: move.color === 'w'
         });
 
         prevEval = -currentEval;
 
-        const progress = ((i + 1) / moveHistory.length) * 100;
-        updateProgress(progress, `${i + 1} / ${moveHistory.length}`);
-        updateLoadingText(`Hamle ${i + 1} / ${moveHistory.length} analiz ediliyor...`);
+        const progress = ((i + 1) / totalMoves) * 100;
+        updateProgress(progress, `${i + 1} / ${totalMoves}`);
+        updateLoadingText(`Hamle ${i + 1} / ${totalMoves} analiz ediliyor...`);
     }
 
+    console.log(`[stockfish-review] Analysis complete: ${analysisResults.length} moves analyzed`);
     return analysisResults;
 }
 
@@ -344,9 +429,21 @@ function displayResults() {
                 details.appendChild(document.createElement('br'));
             }
             
+            // Convert UCI to SAN if possible
+            let bestMoveText = result.bestMove;
+            try {
+                const tempGame = new Chess(result.fenBefore);
+                const moveObj = tempGame.move(result.bestMove);
+                if (moveObj) {
+                    bestMoveText = moveObj.san;
+                }
+            } catch (e) {
+                // Keep UCI format if conversion fails
+            }
+            
             const suggestionSpan = document.createElement('span');
             suggestionSpan.className = 'move-suggestion';
-            suggestionSpan.textContent = `En iyi: ${result.bestMove}`;
+            suggestionSpan.textContent = `En iyi: ${bestMoveText}`;
             details.appendChild(suggestionSpan);
             
             moveItem.appendChild(details);
@@ -362,21 +459,12 @@ function displayResults() {
     game.reset();
     currentMoveIndex = -1;
     
-    if (board) {
-        board.position(game.fen());
-    } else {
-        // Access global Chessboard from window (loaded via script tag)
-        if (typeof window.Chessboard === 'function') {
-            board = window.Chessboard('board', {
-                position: 'start',
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-            });
-            console.log('[stockfish-review] Chess board initialized');
-        } else {
-            console.error('[stockfish-review] Chessboard library not loaded');
-            showToast('Satranç tahtası yüklenemedi. Lütfen sayfayı yenileyin.', 'error');
-        }
+    // Create simple board
+    if (!board) {
+        board = new SimpleBoard('board');
+        console.log('[stockfish-review] Simple board initialized');
     }
+    board.setPosition(game.fen());
 
     updatePositionInfo();
     showSection('results');
@@ -392,7 +480,7 @@ function jumpToMove(index) {
         currentMoveIndex = i;
     }
 
-    board.position(game.fen());
+    board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
 }
@@ -450,7 +538,7 @@ function updateEvalBar() {
 function moveFirst() {
     game.reset();
     currentMoveIndex = -1;
-    board.position(game.fen());
+    board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
 }
@@ -465,7 +553,7 @@ function movePrevious() {
         game.move(moveHistory[i]);
     }
     
-    board.position(game.fen());
+    board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
 }
@@ -475,7 +563,7 @@ function moveNext() {
     
     currentMoveIndex++;
     game.move(moveHistory[currentMoveIndex]);
-    board.position(game.fen());
+    board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
 }
@@ -488,7 +576,7 @@ function moveLast() {
     }
     
     currentMoveIndex = moveHistory.length - 1;
-    board.position(game.fen());
+    board.setPosition(game.fen());
     updatePositionInfo();
     highlightCurrentMove();
 }
@@ -500,7 +588,7 @@ function setupUI() {
     // Sample button
     document.getElementById('sample-btn').addEventListener('click', () => {
         document.getElementById('pgn-input').value = SAMPLE_PGN;
-        showToast('Örnek oyun yüklendi', 'success', 3000);
+        showToast('Örnek oyun yüklendi (12 hamle)', 'success', 3000);
     });
 
     // Clear button

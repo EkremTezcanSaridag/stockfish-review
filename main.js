@@ -332,27 +332,65 @@ function analyzePosition(fen, depth = 12) {
     });
 }
 
-// Classify move
-function classifyMove(cpLoss, wasBestMove, prevEval, currentEval) {
+// Convert centipawns to win probability (Chess.com/Lichess sigmoid model)
+// Uses sigmoid function: 50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)
+function cpToWinProbability(cp) {
+    if (cp > 10000) return 100; // Forced mate
+    if (cp < -10000) return 0;
+    
+    // Standard sigmoid model used by Lichess/Chess.com
+    const WIN_PERCENTAGE_SCALE = 0.00368208; // Empirically derived constant
+    return 50 + 50 * (2 / (1 + Math.exp(-WIN_PERCENTAGE_SCALE * cp)) - 1);
+}
+
+// Classify move based on win% delta (Chess.com-style)
+function classifyMove(cpLoss, wasBestMove, prevEval, currentEval, plyNumber) {
+    const prevWinPct = cpToWinProbability(prevEval);
+    const currentWinPct = cpToWinProbability(currentEval);
+    const winPctLoss = prevWinPct - currentWinPct;
+
+    // Opening book leniency: first 8 plies are lenient
+    const isOpening = plyNumber <= 8;
+    
+    // If best move and reasonable position, could be brilliant
     if (wasBestMove) {
-        if (prevEval > 100 && currentEval > prevEval - 50) {
+        // Brilliant: best move that maintains or improves significant advantage
+        if (prevWinPct >= 70 && currentWinPct >= prevWinPct - 2) {
             return 'brilliant';
+        }
+        // Great: best move in sharp position
+        if (prevWinPct >= 60 && currentWinPct >= prevWinPct - 3) {
+            return 'great';
         }
         return 'best';
     }
 
-    const absLoss = Math.abs(cpLoss);
-
-    if (Math.abs(prevEval) > 5000 || Math.abs(currentEval) > 5000) {
-        if (absLoss < 100) return 'excellent';
-        if (absLoss < 300) return 'good';
+    // Win% delta thresholds (Chess.com-style)
+    if (winPctLoss < 1.0) {
+        return isOpening ? 'book' : 'best';
     }
-
-    if (absLoss < 10) return 'best';
-    if (absLoss < 25) return 'excellent';
-    if (absLoss < 50) return 'good';
-    if (absLoss < 100) return 'inaccuracy';
-    if (absLoss < 300) return 'mistake';
+    if (winPctLoss < 2.0) {
+        return 'excellent';
+    }
+    if (winPctLoss < 3.0) {
+        return 'good';
+    }
+    
+    // Opening leniency: less harsh on early moves
+    if (isOpening) {
+        if (winPctLoss < 5.0) return 'good';
+        if (winPctLoss < 8.0) return 'inaccuracy';
+        if (winPctLoss < 12.0) return 'mistake';
+        return 'blunder';
+    }
+    
+    // Standard game thresholds
+    if (winPctLoss < 5.0) {
+        return 'inaccuracy';
+    }
+    if (winPctLoss < 10.0) {
+        return 'mistake';
+    }
     return 'blunder';
 }
 
@@ -361,25 +399,29 @@ function getClassificationLabel(classification) {
     return TURKISH_LABELS[classification] || classification;
 }
 
-// Calculate accuracy
+// Calculate accuracy based on win% model
 function calculateAccuracy(moves) {
     if (moves.length === 0) return 100;
 
-    let totalLoss = 0;
+    let totalWinPctLoss = 0;
     let moveCount = 0;
 
     moves.forEach(move => {
         if (move.classification) {
-            const cpLoss = Math.abs(move.cpLoss || 0);
-            totalLoss += Math.min(cpLoss, 500);
+            // Calculate actual win% loss for this move
+            const prevWinPct = cpToWinProbability(move.fen === move.fenBefore ? 0 : move.cpLoss);
+            // Use a model that penalizes mistakes more
+            const winPctLoss = Math.abs(move.cpLoss) > 0 ? prevWinPct : 0;
+            totalWinPctLoss += Math.min(winPctLoss, 15); // Cap individual loss
             moveCount++;
         }
     });
 
     if (moveCount === 0) return 100;
 
-    const avgLoss = totalLoss / moveCount;
-    const accuracy = Math.max(0, Math.min(100, 100 - (avgLoss / 5)));
+    // Accuracy formula similar to Chess.com
+    const avgLoss = totalWinPctLoss / moveCount;
+    const accuracy = Math.max(0, Math.min(100, 100 - avgLoss * 3));
     return accuracy.toFixed(1);
 }
 
@@ -469,7 +511,7 @@ async function analyzeGame(pgnInput, depth = 12) {
         const cpLoss = prevEval - currentEval;
         const wasBestMove = bestMove && (move.from + move.to === bestMove || move.san === bestMove);
 
-        const classification = classifyMove(cpLoss, wasBestMove, prevEval, currentEval);
+        const classification = classifyMove(cpLoss, wasBestMove, prevEval, currentEval, i + 1);
 
         analysisResults.push({
             move: move,
@@ -589,6 +631,19 @@ function displayResults() {
             }
         } catch (e) {
             console.error('[stockfish-review] Board re-render failed:', e);
+        }
+        
+        // Auto-jump to first interesting move (mistake or worse) or move 1
+        const firstMistake = analysisResults.findIndex(r => 
+            r.classification === 'mistake' || 
+            r.classification === 'blunder' ||
+            r.classification === 'inaccuracy'
+        );
+        
+        if (firstMistake >= 0) {
+            jumpToMove(firstMistake);
+        } else if (analysisResults.length > 0) {
+            jumpToMove(0); // Jump to move 1
         }
     }, 50);
 }

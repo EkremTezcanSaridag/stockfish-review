@@ -365,10 +365,17 @@ function displayResults() {
     if (board) {
         board.position(game.fen());
     } else {
-        board = Chessboard('board', {
-            position: 'start',
-            pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-        });
+        // Access global Chessboard from window (loaded via script tag)
+        if (typeof window.Chessboard === 'function') {
+            board = window.Chessboard('board', {
+                position: 'start',
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+            });
+            console.log('[stockfish-review] Chess board initialized');
+        } else {
+            console.error('[stockfish-review] Chessboard library not loaded');
+            showToast('Satranç tahtası yüklenemedi. Lütfen sayfayı yenileyin.', 'error');
+        }
     }
 
     updatePositionInfo();

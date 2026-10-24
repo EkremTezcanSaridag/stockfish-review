@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stockfish Oyun Analizi - Ücretsiz Satranç Analizi</title>
-    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <link rel="stylesheet" href="./vendor/chessboard.min.css">
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -123,9 +123,9 @@
         <div id="toast-container"></div>
     </div>
 
-    <!-- Load jQuery and chessboard from CDN -->
+    <!-- Load jQuery and chessboard from vendor (same-origin) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="./vendor/chessboard.min.js"></script>
     
     <!-- Load our app as ES module -->
     <script type="module" src="./main.js"></script>

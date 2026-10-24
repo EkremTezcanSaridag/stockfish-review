@@ -1,0 +1,24 @@
+[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2024.01.15"]
+[Round "?"]
+[White "Player1"]
+[Black "Player2"]
+[Result "1-0"]
+[ECO "C42"]
+[WhiteElo "1500"]
+[BlackElo "1480"]
+[TimeControl "600+0"]
+[EndTime "14:35:22 PST"]
+[Termination "Player1 won by checkmate"]
+
+1. e4 e5 2. Nf3 Nf6 3. Nxe5 d6 4. Nf3 Nxe4 5. d4 d5 6. Bd3 Be7 7. O-O Nc6 8. Re1
+Bf5 9. c4 Nf6 10. Nc3 Bxd3 11. Qxd3 dxc4 12. Qxc4 O-O 13. Bg5 h6 14. Bh4 Nb4
+15. Rad1 Nbd5 16. Nxd5 Nxd5 17. Bxe7 Qxe7 18. Ne5 Rad8 19. Qc5 Qxc5 20. dxc5
+Nb4 21. a3 Nc6 22. Nxc6 bxc6 23. Rxd8 Rxd8 24. Re7 Rc8 25. Kf1 Kf8 26. Re2 Ke7
+27. Ke1 Kd7 28. Kd2 Kc8 29. Kc3 Kb7 30. b4 Ka6 31. Re7 Rf8 32. Rxf7 Rxf7 33.
+Kb3 Kb5 34. a4+ Kb6 35. Kb2 a5 36. bxa5+ Kxa5 37. Kb3 g5 38. h3 h5 39. g3 Rf3+
+40. Kc2 Rxg3 41. Kd2 Rxh3 42. Ke2 Rh2 43. Kf3 Rxf2+ 44. Kg3 Rf5 45. Kg2 Rxc5
+46. Kf3 Rc3+ 47. Kg2 Kxa4 48. Kf2 Kb4 49. Ke2 c5 50. Kd2 Rh3 51. Kc2 c4 52.
+Kb2 Kb5 53. Kc2 Kc5 54. Kb2 Kd4 55. Kc2 c3 56. Kb3 Kd3 57. Kb4 c2 58. Kb5 Rb3+
+59. Ka4 c1=Q 60. Ka5 Qc5+ 61. Ka6 Rb6# 0-1

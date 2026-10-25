@@ -351,6 +351,54 @@ body {
     font-size: 0.9rem;
 }
 
+/* Classification count pills row (Chess.com-like) */
+.summary-classification-counts {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.summary-count-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+}
+
+.summary-count-label {
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.summary-count-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.count-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.78rem;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.count-pill.classification-brilliant { background: linear-gradient(135deg, #1dd1c0, #13a89e); }
+.count-pill.classification-great { background: linear-gradient(135deg, #5d9cec, #4a89dc); }
+.count-pill.classification-best { background: linear-gradient(135deg, #96bc4b, #7fa039); }
+.count-pill.classification-excellent { background: linear-gradient(135deg, #96bc4b, #7fa039); }
+.count-pill.classification-good { background: linear-gradient(135deg, #96bc4b, #7fa039); }
+.count-pill.classification-book { background: linear-gradient(135deg, #a88865, #8b6f4f); }
+.count-pill.classification-inaccuracy { background: linear-gradient(135deg, #f0c15c, #d9a842); color: #2a2a2a; }
+.count-pill.classification-mistake { background: linear-gradient(135deg, #e67e22, #d35400); }
+.count-pill.classification-blunder { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+
 .worst-moves-compact {
     width: 100%;
     margin-top: 0.875rem;

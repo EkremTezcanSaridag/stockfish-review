@@ -708,6 +708,42 @@ function displayGameSummary(whiteMoves, blackMoves, whiteAccuracy, blackAccuracy
     const whiteBrilliant = countClass(whiteMoves, 'brilliant') + countClass(whiteMoves, 'great');
     const blackBrilliant = countClass(blackMoves, 'brilliant') + countClass(blackMoves, 'great');
     
+    const whiteCountMap = {
+        brilliant: countClass(whiteMoves, 'brilliant'),
+        great: countClass(whiteMoves, 'great'),
+        best: countClass(whiteMoves, 'best'),
+        excellent: countClass(whiteMoves, 'excellent'),
+        good: countClass(whiteMoves, 'good'),
+        book: countClass(whiteMoves, 'book'),
+        inaccuracy: countClass(whiteMoves, 'inaccuracy'),
+        mistake: countClass(whiteMoves, 'mistake'),
+        blunder: countClass(whiteMoves, 'blunder')
+    };
+    
+    const blackCountMap = {
+        brilliant: countClass(blackMoves, 'brilliant'),
+        great: countClass(blackMoves, 'great'),
+        best: countClass(blackMoves, 'best'),
+        excellent: countClass(blackMoves, 'excellent'),
+        good: countClass(blackMoves, 'good'),
+        book: countClass(blackMoves, 'book'),
+        inaccuracy: countClass(blackMoves, 'inaccuracy'),
+        mistake: countClass(blackMoves, 'mistake'),
+        blunder: countClass(blackMoves, 'blunder')
+    };
+
+    // Chess.com-like quick counts (Turkish labels), omit 0
+    const renderCounts = (countMap) => {
+        const order = ['brilliant','great','best','excellent','good','book','inaccuracy','mistake','blunder'];
+        const parts = [];
+        order.forEach(key => {
+            const v = countMap[key] || 0;
+            if (!v) return;
+            parts.push(`<span class="count-pill classification-${key}">${v} ${getClassificationLabel(key)}</span>`);
+        });
+        return parts.join(' · ');
+    };
+    
     // Find worst 3 moves
     const worstMoves = analysisResults
         .filter(r => ['inaccuracy', 'mistake', 'blunder'].includes(r.classification))
@@ -753,6 +789,16 @@ function displayGameSummary(whiteMoves, blackMoves, whiteAccuracy, blackAccuracy
                 </div>
             </div>
             <div class="summary-text">${summaryText}</div>
+        </div>
+        <div class="summary-classification-counts">
+            <div class="summary-count-row">
+                <span class="summary-count-label">Beyaz:</span>
+                <span class="summary-count-values">${renderCounts(whiteCountMap)}</span>
+            </div>
+            <div class="summary-count-row">
+                <span class="summary-count-label">Siyah:</span>
+                <span class="summary-count-values">${renderCounts(blackCountMap)}</span>
+            </div>
         </div>
     `;
     

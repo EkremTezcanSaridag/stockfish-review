@@ -1,5 +1,6 @@
 // Import chess.js from local vendor (same-origin, no CDN dependency)
 import { Chess } from './vendor/chess.mjs';
+import { OPENING_BOOK, isBookMove } from './opening-book.js';
 
 // Global state
 let stockfish = null;
@@ -68,13 +69,15 @@ function createWoodTapSound() {
 
 let playWoodTap = null;
 
-// Simple chess board renderer with better styled pieces
+// Simple chess board renderer with arrows and badges
 class SimpleBoard {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.position = null;
         this.highlightSquare = null;
         this.classificationBadge = null;
+        this.bestMoveArrow = null;
+        this.showArrows = true;
         this.render();
     }
 
@@ -83,15 +86,25 @@ class SimpleBoard {
         this.render();
     }
 
-    setHighlight(from, to, classification = null) {
+    setHighlight(from, to, classification = null, bestMove = null) {
         this.highlightSquare = { from, to };
         this.classificationBadge = classification;
+        
+        // Show arrow for mistakes/inaccuracies/blunders
+        if (bestMove && classification && 
+            ['inaccuracy', 'mistake', 'blunder'].includes(classification)) {
+            this.bestMoveArrow = bestMove;
+        } else {
+            this.bestMoveArrow = null;
+        }
+        
         this.render();
     }
 
     clearHighlight() {
         this.highlightSquare = null;
         this.classificationBadge = null;
+        this.bestMoveArrow = null;
         this.render();
     }
 
@@ -179,6 +192,14 @@ class SimpleBoard {
                 this.container.appendChild(square);
             }
         }
+        
+        // Add arrow overlay after squares
+        if (this.bestMoveArrow) {
+            const arrowHTML = this.renderArrow();
+            if (arrowHTML) {
+                this.container.insertAdjacentHTML('beforeend', arrowHTML);
+            }
+        }
     }
 
     getClassificationIcon(classification) {
@@ -194,6 +215,48 @@ class SimpleBoard {
             blunder: '??'
         };
         return icons[classification] || '';
+    }
+
+    squareToCoords(square) {
+        const file = square.charCodeAt(0) - 97; // a=0, h=7
+        const rank = 8 - parseInt(square[1]); // 8=0, 1=7
+        return { row: rank, col: file };
+    }
+
+    renderArrow() {
+        if (!this.bestMoveArrow || !this.showArrows) return '';
+        
+        try {
+            // Parse best move (UCI format: e2e4 or e7e8q)
+            const from = this.bestMoveArrow.substring(0, 2);
+            const to = this.bestMoveArrow.substring(2, 4);
+            
+            const fromCoords = this.squareToCoords(from);
+            const toCoords = this.squareToCoords(to);
+            
+            // Calculate center positions (percentages)
+            const fromX = (fromCoords.col + 0.5) * 12.5; // 12.5% per square
+            const fromY = (fromCoords.row + 0.5) * 12.5;
+            const toX = (toCoords.col + 0.5) * 12.5;
+            const toY = (toCoords.row + 0.5) * 12.5;
+            
+            // Arrow SVG overlay
+            return `
+                <svg class="board-arrow" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                            <polygon points="0 0, 6 3, 0 6" fill="rgba(255, 170, 0, 0.9)" />
+                        </marker>
+                    </defs>
+                    <line x1="${fromX}%" y1="${fromY}%" x2="${toX}%" y2="${toY}%" 
+                          stroke="rgba(255, 170, 0, 0.85)" stroke-width="2.5" 
+                          marker-end="url(#arrowhead)" stroke-linecap="round" />
+                </svg>
+            `;
+        } catch (e) {
+            console.warn('[board] Arrow render error:', e);
+            return '';
+        }
     }
 }
 
@@ -373,12 +436,26 @@ function cpToWinProbability(cp) {
     return 50 + 50 * (2 / (1 + Math.exp(-WIN_PERCENTAGE_SCALE * cp)) - 1);
 }
 
-// Classify move based on win% delta (Chess.com-style)
-function classifyMove(cpLoss, wasBestMove, prevEval, currentEval, plyNumber) {
+// Classify move based on win% delta (Chess.com-style) with opening book check
+function classifyMove(cpLoss, wasBestMove, prevEval, currentEval, plyNumber, isBookMove = false) {
     const prevWinPct = cpToWinProbability(prevEval);
     const currentWinPct = cpToWinProbability(currentEval);
     const winPctLoss = prevWinPct - currentWinPct;
 
+    // Opening book moves: if in book and within first 16 plies, classify as book
+    // This fixes Scandinavian Defense and other openings being marked as mistakes
+    if (isBookMove && plyNumber <= 16) {
+        // Book move with minimal loss (<5%) gets book classification
+        if (winPctLoss < 5.0) {
+            return 'book';
+        }
+        // Book move with larger loss still gets gentler treatment
+        // (won't mark as inaccuracy/mistake unless really bad)
+        if (winPctLoss < 8.0) {
+            return 'good';
+        }
+    }
+    
     // Opening book leniency: first 8 plies are lenient
     const isOpening = plyNumber <= 8;
     
@@ -407,7 +484,7 @@ function classifyMove(cpLoss, wasBestMove, prevEval, currentEval, plyNumber) {
     }
     
     // Opening leniency: less harsh on early moves
-    if (isOpening) {
+    if (isOpening || isBookMove) {
         if (winPctLoss < 5.0) return 'good';
         if (winPctLoss < 8.0) return 'inaccuracy';
         if (winPctLoss < 12.0) return 'mistake';
@@ -558,8 +635,11 @@ async function analyzeGame(pgnInput, depth = 12) {
 
         const cpLoss = prevEval - currentEval;
         const wasBestMove = bestMove && (move.from + move.to === bestMove || move.san === bestMove);
+        
+        // Check if move is in opening book
+        const moveIsBook = isBookMove(fen, move);
 
-        const classification = classifyMove(cpLoss, wasBestMove, prevEval, currentEval, i + 1);
+        const classification = classifyMove(cpLoss, wasBestMove, prevEval, currentEval, i + 1, moveIsBook);
 
         analysisResults.push({
             move: move,
@@ -711,7 +791,7 @@ function jumpToMove(index) {
     const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
     if (result && result.move) {
-        board.setHighlight(result.move.from, result.move.to, result.classification);
+        board.setHighlight(result.move.from, result.move.to, result.classification, result.bestMove);
     }
     updatePositionInfo();
     highlightCurrentMove();
@@ -951,7 +1031,7 @@ function movePrevious() {
     board.setPosition(game.fen());
     if (currentMoveIndex >= 0) {
         const result = analysisResults[currentMoveIndex];
-        board.setHighlight(result.move.from, result.move.to, result.classification);
+        board.setHighlight(result.move.from, result.move.to, result.classification, result.bestMove);
     } else {
         board.clearHighlight();
     }
@@ -967,7 +1047,7 @@ function moveNext() {
     game.move(moveHistory[currentMoveIndex]);
     const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
-    board.setHighlight(result.move.from, result.move.to, result.classification);
+    board.setHighlight(result.move.from, result.move.to, result.classification, result.bestMove);
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();
@@ -983,7 +1063,7 @@ function moveLast() {
     currentMoveIndex = moveHistory.length - 1;
     const result = analysisResults[currentMoveIndex];
     board.setPosition(game.fen());
-    board.setHighlight(result.move.from, result.move.to, result.classification);
+    board.setHighlight(result.move.from, result.move.to, result.classification, result.bestMove);
     updatePositionInfo();
     highlightCurrentMove();
     playMoveSound();

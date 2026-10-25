@@ -770,11 +770,8 @@ function displayResults() {
 
     const whiteAccuracy = calculateAccuracy(whiteMoves);
     const blackAccuracy = calculateAccuracy(blackMoves);
-
-    document.getElementById('white-accuracy').textContent = whiteAccuracy + '%';
-    document.getElementById('black-accuracy').textContent = blackAccuracy + '%';
     
-    // Generate game summary
+    // Generate game summary (includes accuracy display)
     displayGameSummary(whiteMoves, blackMoves, whiteAccuracy, blackAccuracy);
 
     const movesList = document.getElementById('moves-list');

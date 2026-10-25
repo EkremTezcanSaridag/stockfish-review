@@ -471,18 +471,12 @@ function classifyMove(cpLoss, wasBestMove, prevEval, currentEval, plyNumber, isB
     const currentWinPct = cpToWinProbability(currentEval);
     const winPctLoss = prevWinPct - currentWinPct;
 
-    // Opening book moves: if in book and within first 16 plies, classify as book
-    // This fixes Scandinavian Defense and other openings being marked as mistakes
-    if (isBookMove && plyNumber <= 16) {
-        // Book move with minimal loss (<5%) gets book classification
-        if (winPctLoss < 5.0) {
-            return 'book';
-        }
-        // Book move with larger loss still gets gentler treatment
-        // (won't mark as inaccuracy/mistake unless really bad)
-        if (winPctLoss < 8.0) {
-            return 'good';
-        }
+    // Opening book moves: when engine sees it's a known opening move,
+    // never punish it as inaccuracy/mistake/blunder during early game.
+    // This prevents "Stockfish doesn't know openings" style mislabels.
+    if (isBookMove && plyNumber <= 24) {
+        // Always treat as book in early opening (regardless of eval noise / loss).
+        return 'book';
     }
     
     // Opening book leniency: first 8 plies are lenient

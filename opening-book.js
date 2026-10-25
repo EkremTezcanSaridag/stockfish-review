@@ -1,5 +1,6 @@
 // Opening book database (ECO codes with main lines)
-// Covers standard openings to prevent false inaccuracy flags
+// Offline client-side opening book for classification.
+// Key format: first 4 FEN fields (placement, side, castling, ep).
 const OPENING_BOOK = {
     // Starting position
     'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1': [
@@ -64,6 +65,14 @@ const OPENING_BOOK = {
         'b1c3', 'Nc3',   // Vienna
         'f1c4', 'Bc4'    // Bishop's Opening
     ],
+
+    // King's Pawn Game (no EP variant)
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2': [
+        'g1f3', 'Nf3',
+        'f2f4', 'f4',
+        'b1c3', 'Nc3',
+        'f1c4', 'Bc4'
+    ],
     
     // King's Knight: 1.e4 e5 2.Nf3
     'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2': [
@@ -79,6 +88,8 @@ const OPENING_BOOK = {
         'd7d6', 'd6',    // Steinitz
         'f8c5', 'Bc5'    // Classical
     ],
+
+    // Ruy Lopez alternative common: 3...Nf6 (Berlin), 4...O-O not stored (engine handles)
     
     // Italian Game: 1.e4 e5 2.Nf3 Nc6 3.Bc4
     'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3': [
@@ -92,6 +103,13 @@ const OPENING_BOOK = {
         'g1f3', 'Nf3',   // Open Sicilian
         'b1c3', 'Nc3',   // Closed Sicilian
         'd2d4', 'd4'     // Smith-Morra
+    ],
+
+    // Sicilian (no EP variant)
+    'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2': [
+        'g1f3', 'Nf3',
+        'b1c3', 'Nc3',
+        'd2d4', 'd4'
     ],
     
     // French Defense: 1.e4 e6
@@ -119,14 +137,30 @@ const OPENING_BOOK = {
     // Add more as needed...
 };
 
-// Check if move is in opening book for current position
+// Check if move is in opening book for current position.
+// Robustness: match on the first 4 FEN fields (placement, side, castling, ep)
+// to reduce misses caused by halfmove/fullmove drift.
 function isBookMove(fen, move) {
-    const bookMoves = OPENING_BOOK[fen];
+    if (!fen || !move) return false;
+
+    const fenParts = fen.split(' ');
+    if (fenParts.length < 4) return false;
+    const key4 = fenParts.slice(0, 4).join(' ');
+
+    const bookMoves = OPENING_BOOK[key4] || OPENING_BOOK[fen];
     if (!bookMoves) return false;
-    
-    // Check both UCI and SAN formats
+
     const moveStr = move.from + move.to + (move.promotion || '');
     return bookMoves.includes(moveStr) || bookMoves.includes(move.san);
 }
 
-export { OPENING_BOOK, isBookMove };
+// Helper: add both full-FEN and key4-FEN variants to the OPENING_BOOK map.
+function addFenVariants(fenFull, moves) {
+    const parts = fenFull.split(' ');
+    if (parts.length < 4) return;
+    const key4 = parts.slice(0, 4).join(' ');
+    OPENING_BOOK[key4] = moves;
+    OPENING_BOOK[fenFull] = moves;
+}
+
+export { OPENING_BOOK, isBookMove, addFenVariants };

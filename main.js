@@ -718,19 +718,19 @@ function jumpToMove(index) {
     playMoveSound();
 }
 
-// Update coach panel with Turkish commentary
+// Update coach panel with expanded Turkish commentary (2-4 sentences)
 function updateCoachPanel() {
     const coachPanel = document.getElementById('coach-panel');
     if (!coachPanel) return;
 
     if (currentMoveIndex < 0) {
-        coachPanel.innerHTML = 'Başlangıç pozisyonu. İleri ok ile hamlelerı incele.';
+        coachPanel.innerHTML = '<div class="coach-text">Başlangıç pozisyonu. İleri ok ile hamleleri incele ve her hamle hakkında detaylı açıklama al.</div>';
         return;
     }
 
     const result = analysisResults[currentMoveIndex];
     if (!result) {
-        coachPanel.innerHTML = 'Bir hamle seç veya analizi başlat.';
+        coachPanel.innerHTML = '<div class="coach-text">Bir hamle seç veya analizi başlat.</div>';
         return;
     }
 
@@ -753,58 +753,95 @@ function updateCoachPanel() {
             if (moveObj) {
                 bestMoveSAN = moveObj.san;
             }
-        } catch (e) {
-            // Keep UCI notation if conversion fails
-        }
+        } catch (e) {}
     }
+
+    // Varied templates for natural commentary
+    const templates = {
+        brilliant: [
+            `Muhteşem bir hamle! ${move.san} sadece güçlü değil, aynı zamanda çok yaratıcı. Bu hamle pozisyondaki avantajını daha da artırıyor ve rakibine ciddi sorunlar yaratıyor. Böyle hamleler oyunun gidişatını tamamen değiştirebilir.`,
+            `Bravo! ${move.san} parlak bir fikir. Bu hamle pozisyonunu çok güçlendiriyor ve rakibini zor durumda bırakıyor. Devam eden hamlelerde bu avantajı korumaya çalış.`,
+            `Muhteşem! ${move.san} ile pozisyonunda büyük bir sıçrama yaptın. Bu tür hamleler sadece materyel kazanmakla kalmaz, aynı zamanda rakibin planlarını da bozar.`
+        ],
+        great: [
+            `Harika hamle! ${move.san} pozisyonunda çok iyi bir seçim. Bu hamle avantajını koruyor ve oyun planını sürdürüyor. Devam etmek için doğru yoldasın.`,
+            `Çok iyi! ${move.san} güçlü bir hamle. Pozisyonunu sağlamlaştırıyor ve rakibine baskı yapıyorsun. Bu tür tutarlı oyun başarı getirir.`,
+            `Mükemmel seçim! ${move.san} ile pozisyonunu geliştirmeye devam ediyorsun. Avantajını korumak için böyle hamlelere ihtiyaç var.`
+        ],
+        best: [
+            `En iyi hamle! ${move.san} pozisyondaki en güçlü devam. Bu hamle teorik olarak en doğru seçim ve avantajını maksimize ediyor. Böyle devam!`,
+            `Mükemmel! ${move.san} bilgisayarın da seçeceği hamle. Pozisyonunu en iyi şekilde değerlendirdin. Tutarlı oyununu sürdür.`,
+            `Kusursuz! ${move.san} pozisyonda en doğru hamle. Bu tür hassasiyetle oynamaya devam edersen başarı kaçınılmaz.`
+        ],
+        excellent: [
+            `Çok iyi hamle! ${move.san} pozisyonunda neredeyse mükemmel bir seçim. Belki en güçlü değil ama avantajını koruyor ve oyun planına sadık kalıyorsun.`,
+            `Güzel! ${move.san} sağlam bir hamle. Pozisyonunu geliştiriyor ve rakibine sorun yaratmaya devam ediyorsun. İyi iş!`
+        ],
+        good: [
+            `İyi hamle. ${move.san} makul bir seçim ve pozisyonu dengeliyor. Her zaman en güçlü hamleyi bulmak zor olabilir, ama bu da işini görüyor.`,
+            `Fena değil. ${move.san} pozisyonda kabul edilebilir bir devam. Daha iyileri olabilir ama bu hamle de işe yarıyor.`
+        ],
+        book: [
+            `Kitap hamlesi. ${move.san} bu açılışta bilinen ve test edilmiş bir hamle. Açılış teorisine uygun oynuyorsun, şimdi orta oyuna hazırlan.`,
+            `Teorik hamle! ${move.san} bu açılışın standart devamı. Açılış prensiplerini doğru uyguluyorsun: gelişim, merkez kontrolü, kale güvenliği.`
+        ],
+        inaccuracy: [
+            `Yanlış hamle. ${move.san} tam doğru değil ve ${winPctLoss.toFixed(1)}% kazanma şansı kaybettirdi. ${bestMoveSAN ? `Yerine <strong>${bestMoveSAN}</strong> daha iyi olurdu. Bu hamle pozisyonunu daha güçlü geliştirir ve rakibine daha az fırsat bırakır.` : 'Daha dikkatli olmaya çalış.'} Küçük hatalar birikince sorun olabilir.`,
+            `Belirsiz hamle. ${move.san} ile ${winPctLoss.toFixed(1)}% avantaj kaybettin. ${bestMoveSAN ? `<strong>${bestMoveSAN}</strong> daha net ve güçlüydü. Böyle pozisyonlarda merkez kontrolü ve taş gelişimi öncelikli olmalı.` : 'Alternatif hamleleri düşün.'} Dikkat et!`
+        ],
+        mistake: [
+            `Hata! ${move.san} kötü bir hamle ve ${winPctLoss.toFixed(1)}% kazanma şansı kaybettirdi. ${bestMoveSAN ? `<strong>${bestMoveSAN}</strong> çok daha iyiydi. Bu hamle pozisyonunu güçlendirir ve rakibine taktik fırsatlar vermezdi.` : 'Hamle yapmadan önce tüm tehlikeleri kontrol et.'} Böyle hatalara dikkat!`,
+            `Vahim! ${move.san} ile ${winPctLoss.toFixed(1)}% kayıp. ${bestMoveSAN ? `Kesinlikle <strong>${bestMoveSAN}</strong> oynanmalıydı. Bu hamle hem materyel hem de pozisyon açısından çok daha üstün.` : 'Pozisyonu dikkatli değerlendir.'} Bu tür hatalardan kaçınmaya çalış.`
+        ],
+        blunder: [
+            `Vahim hata! ${move.san} çok kötü bir hamle ve ${winPctLoss.toFixed(1)}% kazanma şansı kaybettirdi! ${bestMoveSAN ? `<strong>${bestMoveSAN}</strong> mutlaka oynanmalıydı. Bu hamle rakibinin taktik tehditlerine karşı savunma yapar ve pozisyonunu güvence altına alırdı.` : 'Her hamleden önce tehlikeleri görmeye çalış.'} Böyle büyük hatalar oyunu kaybettirir!`,
+            `Felaket! ${move.san} korkunç bir hamle, ${winPctLoss.toFixed(1)}% kayıp! ${bestMoveSAN ? `<strong>${bestMoveSAN}</strong> tek doğru hamleydi. Bu hamle hem materyel hem de pozisyon avantajı sağlar.` : 'Çok daha dikkatli ol!'} Taktik tehditleri görmek için hesaplama yap!`
+        ]
+    };
+
+    // Select random template for variety
+    const classTemplates = templates[classification] || [];
+    const template = classTemplates[Math.floor(Math.random() * classTemplates.length)] || `${move.san} oynandı.`;
 
     switch (classification) {
         case 'brilliant':
             icon = '✨';
-            commentary = `<strong>Muhteşem hamle!</strong> ${move.san} çok güçlü bir hamle. Pozisyonunu daha da güçlendirdin.`;
+            commentary = `<strong>Muhteşem!</strong><br>${template}`;
             break;
         case 'great':
             icon = '🎯';
-            commentary = `<strong>Harika hamle!</strong> ${move.san} çok iyi bir seçim. Bu hamle avantajını koruyor.`;
+            commentary = `<strong>Harika!</strong><br>${template}`;
             break;
         case 'best':
             icon = '✓';
-            commentary = `<strong>En iyi hamle!</strong> ${move.san} pozisyondaki en güçlü hamle. Devam et!`;
+            commentary = `<strong>En İyi!</strong><br>${template}`;
             break;
         case 'excellent':
             icon = '✓';
-            commentary = `<strong>Mükemmel!</strong> ${move.san} çok iyi bir hamle. Avantajını sürdürüyorsun.`;
+            commentary = `<strong>Mükemmel!</strong><br>${template}`;
             break;
         case 'good':
             icon = '👍';
-            commentary = `<strong>İyi hamle.</strong> ${move.san} makul bir seçim. Pozisyon dengeli.`;
+            commentary = `<strong>İyi.</strong><br>${template}`;
             break;
         case 'book':
             icon = '📖';
-            commentary = `<strong>Kitap hamlesi.</strong> ${move.san} bilinen bir açılış hamlesi.`;
+            commentary = `<strong>Kitap.</strong><br>${template}`;
             break;
         case 'inaccuracy':
             icon = '⚠️';
-            commentary = `<strong>Yanlış.</strong> ${move.san} tam doğru değil (${winPctLoss.toFixed(1)}% kayıp).`;
-            if (bestMoveSAN && bestMoveSAN !== move.san) {
-                commentary += ` Yerine <strong>${bestMoveSAN}</strong> daha iyiydi.`;
-            }
+            commentary = `<strong>Yanlış.</strong><br>${template}`;
             break;
         case 'mistake':
             icon = '❗';
-            commentary = `<strong>Hata!</strong> ${move.san} zayıf bir hamle (${winPctLoss.toFixed(1)}% kayıp).`;
-            if (bestMoveSAN && bestMoveSAN !== move.san) {
-                commentary += ` Yerine <strong>${bestMoveSAN}</strong> oynayabilirdin.`;
-            }
+            commentary = `<strong>Hata!</strong><br>${template}`;
             break;
         case 'blunder':
             icon = '‼️';
-            commentary = `<strong>Vahim hata!</strong> ${move.san} çok kötü bir hamle (${winPctLoss.toFixed(1)}% kayıp)!`;
-            if (bestMoveSAN && bestMoveSAN !== move.san) {
-                commentary += ` Kesinlikle <strong>${bestMoveSAN}</strong> oynanmalıydı.`;
-            }
+            commentary = `<strong>Vahim!</strong><br>${template}`;
             break;
         default:
+            icon = '';
             commentary = `${move.san} oynandı.`;
     }
 
@@ -816,7 +853,7 @@ function updateCoachPanel() {
     const evalColor = result.evaluation > 0 ? 'Beyaz' : 'Siyah';
     const evalLabel = Math.abs(result.evaluation) > 50 
         ? `<div class="coach-eval">${evalColor} avantajlı: ${evalText}</div>`
-        : `<div class="coach-eval">Denge: ${evalText}</div>`;
+        : `<div class="coach-eval">Pozisyon dengeli: ${evalText}</div>`;
 
     coachPanel.innerHTML = `
         <div class="coach-icon">${icon}</div>

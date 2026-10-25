@@ -281,7 +281,7 @@ function initStockfish() {
     });
 }
 
-// Analyze position
+// Analyze position with timeout protection
 function analyzePosition(fen, depth = 12) {
     return new Promise((resolve) => {
         if (!stockfish || !stockfishReady) {
@@ -292,15 +292,20 @@ function analyzePosition(fen, depth = 12) {
         let bestMove = null;
         let evaluation = 0;
         let mate = null;
+        let resolved = false;
 
         const messageHandler = (event) => {
             const message = event.data;
 
             if (typeof message === 'string') {
                 if (message.startsWith('bestmove')) {
+                    if (resolved) return;
+                    
                     const parts = message.split(' ');
                     bestMove = parts[1];
                     
+                    resolved = true;
+                    clearTimeout(timeoutId);
                     stockfish.removeEventListener('message', messageHandler);
                     resolve({
                         eval: mate !== null ? (mate > 0 ? 10000 : -10000) : evaluation,
@@ -325,6 +330,23 @@ function analyzePosition(fen, depth = 12) {
                 }
             }
         };
+
+        // Timeout protection: 12 seconds max per position
+        const timeoutId = setTimeout(() => {
+            if (resolved) return;
+            
+            console.warn('[stockfish-review] Position analysis timeout, using last eval');
+            resolved = true;
+            stockfish.removeEventListener('message', messageHandler);
+            
+            // Resolve with last known evaluation
+            resolve({
+                eval: mate !== null ? (mate > 0 ? 10000 : -10000) : evaluation,
+                bestMove: bestMove,
+                mate: mate,
+                isMate: mate !== null
+            });
+        }, 12000);
 
         stockfish.addEventListener('message', messageHandler);
         stockfish.postMessage('position fen ' + fen);
@@ -494,13 +516,31 @@ async function analyzeGame(pgnInput, depth = 12) {
         const move = moveHistory[i];
         const fen = game.fen();
 
-        const analysis = await analyzePosition(fen, depth);
+        let analysis = { eval: 0, bestMove: null, mate: null, isMate: false };
+        let afterAnalysis = { eval: 0, bestMove: null, mate: null, isMate: false };
+
+        try {
+            // Analyze position before move
+            updateProgress(((i + 0.5) / totalMoves) * 100, `${i + 1} / ${totalMoves}`);
+            updateLoadingText(`Hamle ${i + 1} / ${totalMoves} analiz ediliyor... (pozisyon öncesi)`);
+            analysis = await analyzePosition(fen, depth);
+            
+            game.move(move.san);
+            
+            // Analyze position after move
+            updateProgress(((i + 0.75) / totalMoves) * 100, `${i + 1} / ${totalMoves}`);
+            updateLoadingText(`Hamle ${i + 1} / ${totalMoves} analiz ediliyor... (pozisyon sonrası)`);
+            const afterFen = game.fen();
+            afterAnalysis = await analyzePosition(afterFen, depth);
+        } catch (error) {
+            console.error(`[stockfish-review] Error analyzing move ${i + 1}:`, error);
+            // Continue with default values if position analysis fails
+            if (game.turn() === move.color) {
+                game.move(move.san); // Ensure move is made if not done yet
+            }
+        }
+
         const bestMove = analysis.bestMove;
-
-        game.move(move.san);
-
-        const afterFen = game.fen();
-        const afterAnalysis = await analyzePosition(afterFen, depth);
 
         let currentEval = afterAnalysis.eval;
         if (move.color === 'b') {
@@ -519,7 +559,7 @@ async function analyzeGame(pgnInput, depth = 12) {
             bestMove: bestMove,
             cpLoss: cpLoss,
             classification: classification,
-            fen: afterFen,
+            fen: afterAnalysis.eval !== 0 ? game.fen() : fen, // Use current fen if analysis succeeded
             fenBefore: fen,
             moveNumber: Math.floor(i / 2) + 1,
             isWhite: move.color === 'w'
@@ -529,10 +569,12 @@ async function analyzeGame(pgnInput, depth = 12) {
 
         const progress = ((i + 1) / totalMoves) * 100;
         updateProgress(progress, `${i + 1} / ${totalMoves}`);
-        updateLoadingText(`Hamle ${i + 1} / ${totalMoves} analiz ediliyor...`);
+        updateLoadingText(`Hamle ${i + 1} / ${totalMoves} analiz edildi`);
     }
 
     console.log(`[stockfish-review] Analysis complete: ${analysisResults.length} moves analyzed`);
+    updateProgress(100, `${totalMoves} / ${totalMoves}`);
+    updateLoadingText('Analiz tamamlanıyor...');
     return analysisResults;
 }
 

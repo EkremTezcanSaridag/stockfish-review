@@ -291,7 +291,150 @@ body {
     color: var(--text-secondary);
 }
 
-/* Game Summary Card */
+/* Game Summary Bar - Full width at top */
+.summary-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 1rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summary-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.summary-accuracy-chips {
+    display: flex;
+    gap: 1rem;
+}
+
+.accuracy-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.accuracy-chip-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.375rem;
+}
+
+.accuracy-chip-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+.summary-text {
+    flex: 1;
+    min-width: 280px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.worst-moves-compact {
+    width: 100%;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.worst-moves-header {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.worst-moves-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.worst-move-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.worst-move-chip:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-hover);
+}
+
+.worst-move-chip-rank {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 1.5rem;
+}
+
+.worst-move-chip-notation {
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.worst-move-chip-class {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.worst-move-chip-loss {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .summary-compact {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .summary-accuracy-chips {
+        width: 100%;
+        justify-content: space-around;
+    }
+    
+    .worst-moves-row {
+        flex-direction: column;
+    }
+}
+
+/* Old summary styles - remove/deprecate */
 .summary-card {
     margin-bottom: 1.25rem;
 }

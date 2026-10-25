@@ -9,8 +9,20 @@ const OPENING_BOOK = {
         'c2c4', 'c4'   // English
     ],
     
-    // After 1.e4
+    // After 1.e4 (two common FEN variants: with EP square or without)
     'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1': [
+        'e7e5', 'e5',    // King's Pawn
+        'c7c5', 'c5',    // Sicilian
+        'e7e6', 'e6',    // French
+        'c7c6', 'c6',    // Caro-Kann
+        'd7d5', 'd5',    // Scandinavian
+        'g8f6', 'Nf6',   // Alekhine
+        'd7d6', 'd6',    // Pirc
+        'g7g6', 'g6'     // Modern
+    ],
+
+    // After 1.e4 (no en-passant target)
+    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1': [
         'e7e5', 'e5',    // King's Pawn
         'c7c5', 'c5',    // Sicilian
         'e7e6', 'e6',    // French

@@ -281,7 +281,7 @@ function initStockfish() {
     });
 }
 
-// Analyze position with timeout protection
+// Analyze position with timeout and stop protection
 function analyzePosition(fen, depth = 12) {
     return new Promise((resolve) => {
         if (!stockfish || !stockfishReady) {
@@ -331,13 +331,18 @@ function analyzePosition(fen, depth = 12) {
             }
         };
 
-        // Timeout protection: 12 seconds max per position
+        // Timeout protection: 10 seconds max per position
         const timeoutId = setTimeout(() => {
             if (resolved) return;
             
-            console.warn('[stockfish-review] Position analysis timeout, using last eval');
+            console.warn('[stockfish-review] Position analysis timeout after 10s, using last eval');
             resolved = true;
             stockfish.removeEventListener('message', messageHandler);
+            
+            // Stop any ongoing analysis
+            try {
+                stockfish.postMessage('stop');
+            } catch (e) {}
             
             // Resolve with last known evaluation
             resolve({
@@ -346,9 +351,12 @@ function analyzePosition(fen, depth = 12) {
                 mate: mate,
                 isMate: mate !== null
             });
-        }, 12000);
+        }, 10000);
 
         stockfish.addEventListener('message', messageHandler);
+        
+        // Stop any previous analysis before starting new one
+        stockfish.postMessage('stop');
         stockfish.postMessage('position fen ' + fen);
         stockfish.postMessage('go depth ' + depth);
     });

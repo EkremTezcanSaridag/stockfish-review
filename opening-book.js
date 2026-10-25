@@ -137,6 +137,17 @@ const OPENING_BOOK = {
     // Add more as needed...
 };
 
+// Normalize all book keys to key4 (first 4 FEN fields).
+// Prevents mismatches where the lookup uses key4 but the data was authored with full FEN.
+for (const [fenFull, moves] of Object.entries(OPENING_BOOK)) {
+    const parts = fenFull.split(' ');
+    if (parts.length >= 4) {
+        const key4 = parts.slice(0, 4).join(' ');
+        // Prefer existing key4 if present; otherwise register.
+        if (!OPENING_BOOK[key4]) OPENING_BOOK[key4] = moves;
+    }
+}
+
 // Check if move is in opening book for current position.
 // Robustness: match on the first 4 FEN fields (placement, side, castling, ep)
 // to reduce misses caused by halfmove/fullmove drift.

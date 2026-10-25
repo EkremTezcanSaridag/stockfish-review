@@ -34,36 +34,65 @@ const TURKISH_LABELS = {
     blunder: 'Vahim'
 };
 
-// Web Audio API wood-tap sound generator
+// Web Audio API: short filtered noise-burst + tiny click ("tak" for piece drop)
+// Goal: wood-like tap (40–80ms), not a sine beep. Mute is preserved via soundEnabled.
 function createWoodTapSound() {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioCtx();
+
     return function playTap() {
         if (!soundEnabled) return;
-        
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().catch(() => {});
+        }
+
         const now = audioContext.currentTime;
-        
-        // Wood tap has a sharp attack with quick decay
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(150, now);
-        oscillator.frequency.exponentialRampToValueAtTime(80, now + 0.02);
-        
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(800, now);
-        
-        gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-        
-        oscillator.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.start(now);
-        oscillator.stop(now + 0.08);
+        const duration = 0.08; // ~80ms
+        const sampleRate = audioContext.sampleRate;
+        const frameCount = Math.max(1, Math.floor(sampleRate * duration));
+
+        // Brown-ish noise (integrated + smoothed), then bandpass filter to reduce harshness
+        const buffer = audioContext.createBuffer(1, frameCount, sampleRate);
+        const data = buffer.getChannelData(0);
+        let last = 0;
+        for (let i = 0; i < frameCount; i++) {
+            const white = Math.random() * 2 - 1;
+            last = 0.985 * last + 0.015 * white;
+            data[i] = last;
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+
+        const bandpass = audioContext.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.setValueAtTime(850, now);
+        bandpass.Q.setValueAtTime(0.85, now);
+
+        const gain = audioContext.createGain();
+        gain.gain.setValueAtTime(0.20, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        source.connect(bandpass);
+        bandpass.connect(gain);
+        gain.connect(audioContext.destination);
+
+        // Tiny leading-edge click
+        const clickOsc = audioContext.createOscillator();
+        clickOsc.type = 'square';
+        clickOsc.frequency.setValueAtTime(2500, now);
+
+        const clickGain = audioContext.createGain();
+        clickGain.gain.setValueAtTime(0.045, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+
+        clickOsc.connect(clickGain);
+        clickGain.connect(audioContext.destination);
+
+        source.start(now);
+        source.stop(now + duration);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.02);
     };
 }
 

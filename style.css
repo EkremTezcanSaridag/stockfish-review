@@ -292,12 +292,8 @@ body {
 }
 
 /* Game Summary Bar - Compact full-width */
-.summary-bar {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1rem;
-    margin-bottom: 1.25rem;
+.summary-right-card {
+    margin-bottom: 1rem;
 }
 
 .summary-header {
@@ -801,6 +797,14 @@ body {
 }
 
 /* Coach Panel - Primary in right column */
+.summary-right-card h2 {
+    margin-bottom: 0.75rem;
+}
+
+.summary-right-card #summary-content {
+    color: var(--text-secondary);
+}
+
 .coach-primary {
     min-height: 200px;
 }

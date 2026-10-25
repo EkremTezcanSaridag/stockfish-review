@@ -75,11 +75,6 @@
             </div>
 
             <div id="results-section" style="display: none;">
-                <!-- Full-width summary bar at top -->
-                <div class="summary-bar" id="game-summary">
-                    <div id="summary-content"></div>
-                </div>
-                
                 <!-- Main analysis grid below -->
                 <div class="results-grid">
                     <div class="board-column">
@@ -98,6 +93,12 @@
                     </div>
 
                     <div class="analysis-column">
+                        <!-- Right stack: compact summary above Hoca -->
+                        <div class="card summary-right-card" id="game-summary">
+                            <h2>📊 Oyun Özeti</h2>
+                            <div id="summary-content"></div>
+                        </div>
+
                         <div class="card coach-card coach-primary">
                             <h2>💬 Hoca</h2>
                             <div id="coach-panel" class="coach-content">

@@ -291,6 +291,130 @@ body {
     color: var(--text-secondary);
 }
 
+/* Game Summary Card */
+.summary-card {
+    margin-bottom: 1.25rem;
+}
+
+.summary-paragraph {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-primary);
+    margin-bottom: 1.25rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.summary-player h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.classification-counts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.count-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+}
+
+.count-item.brilliant { background: var(--brilliant); color: #fff; }
+.count-item.great { background: var(--great); color: #fff; }
+.count-item.best { background: var(--best); color: #fff; }
+.count-item.book { background: var(--book); color: #fff; }
+.count-item.inaccuracy { background: var(--inaccuracy); color: #000; }
+.count-item.mistake { background: var(--mistake); color: #fff; }
+.count-item.blunder { background: var(--blunder); color: #fff; }
+
+.worst-moves {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.worst-moves h3 {
+    font-size: 1rem;
+    margin-bottom: 0.875rem;
+    color: var(--text-primary);
+}
+
+.worst-moves-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.worst-move-item {
+    display: flex;
+    gap: 0.875rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.worst-move-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-hover);
+}
+
+.worst-move-rank {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 2rem;
+}
+
+.worst-move-info {
+    flex: 1;
+}
+
+.worst-move-notation {
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.375rem;
+}
+
+.worst-move-class {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.375rem;
+}
+
+.worst-move-loss {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Results Grid - Sticky board, denser layout */
 .results-grid {
     display: grid;

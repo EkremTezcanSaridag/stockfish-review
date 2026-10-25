@@ -116,3 +116,5 @@ function isBookMove(fen, move) {
     const moveStr = move.from + move.to + (move.promotion || '');
     return bookMoves.includes(moveStr) || bookMoves.includes(move.san);
 }
+
+export { OPENING_BOOK, isBookMove };

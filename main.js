@@ -666,6 +666,158 @@ async function analyzeGame(pgnInput, depth = 12) {
     return analysisResults;
 }
 
+// Generate game summary report
+function displayGameSummary(whiteMoves, blackMoves, whiteAccuracy, blackAccuracy) {
+    const summaryContent = document.getElementById('summary-content');
+    if (!summaryContent) return;
+    
+    // Count classifications
+    const countClass = (moves, classification) => moves.filter(m => m.classification === classification).length;
+    
+    const whiteCounts = {
+        brilliant: countClass(whiteMoves, 'brilliant'),
+        great: countClass(whiteMoves, 'great'),
+        best: countClass(whiteMoves, 'best'),
+        excellent: countClass(whiteMoves, 'excellent'),
+        good: countClass(whiteMoves, 'good'),
+        book: countClass(whiteMoves, 'book'),
+        inaccuracy: countClass(whiteMoves, 'inaccuracy'),
+        mistake: countClass(whiteMoves, 'mistake'),
+        blunder: countClass(whiteMoves, 'blunder')
+    };
+    
+    const blackCounts = {
+        brilliant: countClass(blackMoves, 'brilliant'),
+        great: countClass(blackMoves, 'great'),
+        best: countClass(blackMoves, 'best'),
+        excellent: countClass(blackMoves, 'excellent'),
+        good: countClass(blackMoves, 'good'),
+        book: countClass(blackMoves, 'book'),
+        inaccuracy: countClass(blackMoves, 'inaccuracy'),
+        mistake: countClass(blackMoves, 'mistake'),
+        blunder: countClass(blackMoves, 'blunder')
+    };
+    
+    // Find worst 3 moves
+    const worstMoves = analysisResults
+        .filter(r => ['inaccuracy', 'mistake', 'blunder'].includes(r.classification))
+        .sort((a, b) => Math.abs(b.cpLoss) - Math.abs(a.cpLoss))
+        .slice(0, 3);
+    
+    // Generate Turkish summary paragraph
+    const totalMoves = whiteMoves.length + blackMoves.length;
+    const whiteErrors = whiteCounts.inaccuracy + whiteCounts.mistake + whiteCounts.blunder;
+    const blackErrors = blackCounts.inaccuracy + blackCounts.mistake + blackCounts.blunder;
+    const whiteBrilliant = whiteCounts.brilliant + whiteCounts.great;
+    const blackBrilliant = blackCounts.brilliant + blackCounts.great;
+    
+    let summaryText = `${Math.ceil(totalMoves / 2)} hamlelik oyun analiz edildi. `;
+    
+    if (whiteAccuracy >= 90 && blackAccuracy >= 90) {
+        summaryText += 'Her iki taraf da çok yüksek doğrulukla oynadı. ';
+    } else if (whiteAccuracy > blackAccuracy + 10) {
+        summaryText += 'Beyaz, siyaha göre çok daha iyi oynadı. ';
+    } else if (blackAccuracy > whiteAccuracy + 10) {
+        summaryText += 'Siyah, beyaza göre çok daha iyi oynadı. ';
+    } else {
+        summaryText += 'Her iki taraf da benzer seviyede oynadı. ';
+    }
+    
+    if (whiteBrilliant > 0 || blackBrilliant > 0) {
+        summaryText += `Oyunda ${whiteBrilliant + blackBrilliant} muhteşem/harika hamle görüldü. `;
+    }
+    
+    if (whiteErrors + blackErrors > 0) {
+        summaryText += `Toplamda ${whiteErrors + blackErrors} hata yapıldı. `;
+        if (worstMoves.length > 0) {
+            summaryText += 'En kritik hatalar aşağıda listelenmiştir.';
+        }
+    } else {
+        summaryText += 'Hiç ciddi hata yapılmadı!';
+    }
+    
+    // Build HTML
+    let html = `
+        <div class="summary-paragraph">${summaryText}</div>
+        
+        <div class="summary-grid">
+            <div class="summary-player">
+                <h3>Beyaz (${whiteAccuracy}%)</h3>
+                <div class="classification-counts">
+    `;
+    
+    if (whiteCounts.brilliant > 0) html += `<div class="count-item brilliant">Muhteşem: ${whiteCounts.brilliant}</div>`;
+    if (whiteCounts.great > 0) html += `<div class="count-item great">Harika: ${whiteCounts.great}</div>`;
+    if (whiteCounts.best > 0) html += `<div class="count-item best">En iyi: ${whiteCounts.best}</div>`;
+    if (whiteCounts.book > 0) html += `<div class="count-item book">Kitap: ${whiteCounts.book}</div>`;
+    if (whiteCounts.inaccuracy > 0) html += `<div class="count-item inaccuracy">Yanlış: ${whiteCounts.inaccuracy}</div>`;
+    if (whiteCounts.mistake > 0) html += `<div class="count-item mistake">Hata: ${whiteCounts.mistake}</div>`;
+    if (whiteCounts.blunder > 0) html += `<div class="count-item blunder">Vahim: ${whiteCounts.blunder}</div>`;
+    
+    html += `
+                </div>
+            </div>
+            
+            <div class="summary-player">
+                <h3>Siyah (${blackAccuracy}%)</h3>
+                <div class="classification-counts">
+    `;
+    
+    if (blackCounts.brilliant > 0) html += `<div class="count-item brilliant">Muhteşem: ${blackCounts.brilliant}</div>`;
+    if (blackCounts.great > 0) html += `<div class="count-item great">Harika: ${blackCounts.great}</div>`;
+    if (blackCounts.best > 0) html += `<div class="count-item best">En iyi: ${blackCounts.best}</div>`;
+    if (blackCounts.book > 0) html += `<div class="count-item book">Kitap: ${blackCounts.book}</div>`;
+    if (blackCounts.inaccuracy > 0) html += `<div class="count-item inaccuracy">Yanlış: ${blackCounts.inaccuracy}</div>`;
+    if (blackCounts.mistake > 0) html += `<div class="count-item mistake">Hata: ${blackCounts.mistake}</div>`;
+    if (blackCounts.blunder > 0) html += `<div class="count-item blunder">Vahim: ${blackCounts.blunder}</div>`;
+    
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (worstMoves.length > 0) {
+        html += `
+            <div class="worst-moves">
+                <h3>En Kötü ${worstMoves.length} Hamle</h3>
+                <div class="worst-moves-list">
+        `;
+        
+        worstMoves.forEach((move, index) => {
+            const winPctLoss = Math.abs(cpToWinProbability(move.evaluation + move.cpLoss) - cpToWinProbability(move.evaluation));
+            html += `
+                <div class="worst-move-item" data-move-index="${analysisResults.indexOf(move)}">
+                    <div class="worst-move-rank">${index + 1}.</div>
+                    <div class="worst-move-info">
+                        <div class="worst-move-notation">Hamle ${move.moveNumber}${move.isWhite ? '.' : '...'} ${move.move.san}</div>
+                        <div class="worst-move-class classification-${move.classification}">${getClassificationLabel(move.classification)}</div>
+                        <div class="worst-move-loss">-${winPctLoss.toFixed(1)}% kazanma şansı</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    summaryContent.innerHTML = html;
+    
+    // Add click handlers to worst moves
+    document.querySelectorAll('.worst-move-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const moveIndex = parseInt(item.dataset.moveIndex);
+            jumpToMove(moveIndex);
+            
+            // Scroll to results section
+            document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+}
+
 // Display results
 function displayResults() {
     const whiteMoves = analysisResults.filter(r => r.isWhite);
@@ -676,6 +828,9 @@ function displayResults() {
 
     document.getElementById('white-accuracy').textContent = whiteAccuracy + '%';
     document.getElementById('black-accuracy').textContent = blackAccuracy + '%';
+    
+    // Generate game summary
+    displayGameSummary(whiteMoves, blackMoves, whiteAccuracy, blackAccuracy);
 
     const movesList = document.getElementById('moves-list');
     movesList.innerHTML = '';

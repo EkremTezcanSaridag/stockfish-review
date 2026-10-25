@@ -668,6 +668,113 @@ function jumpToMove(index) {
     playMoveSound();
 }
 
+// Update coach panel with Turkish commentary
+function updateCoachPanel() {
+    const coachPanel = document.getElementById('coach-panel');
+    if (!coachPanel) return;
+
+    if (currentMoveIndex < 0) {
+        coachPanel.innerHTML = 'Başlangıç pozisyonu. İleri ok ile hamlelerı incele.';
+        return;
+    }
+
+    const result = analysisResults[currentMoveIndex];
+    if (!result) {
+        coachPanel.innerHTML = 'Bir hamle seç veya analizi başlat.';
+        return;
+    }
+
+    const classification = result.classification;
+    const move = result.move;
+    const cpLoss = Math.abs(result.cpLoss || 0);
+    const prevWinPct = cpToWinProbability(result.evaluation + (move.color === 'w' ? cpLoss : -cpLoss));
+    const currentWinPct = cpToWinProbability(result.evaluation);
+    const winPctLoss = Math.abs(prevWinPct - currentWinPct);
+
+    let commentary = '';
+    let icon = '';
+
+    // Get best move in SAN
+    let bestMoveSAN = result.bestMove;
+    if (result.bestMove && result.fenBefore) {
+        try {
+            const tempGame = new Chess(result.fenBefore);
+            const moveObj = tempGame.move(result.bestMove);
+            if (moveObj) {
+                bestMoveSAN = moveObj.san;
+            }
+        } catch (e) {
+            // Keep UCI notation if conversion fails
+        }
+    }
+
+    switch (classification) {
+        case 'brilliant':
+            icon = '✨';
+            commentary = `<strong>Muhteşem hamle!</strong> ${move.san} çok güçlü bir hamle. Pozisyonunu daha da güçlendirdin.`;
+            break;
+        case 'great':
+            icon = '🎯';
+            commentary = `<strong>Harika hamle!</strong> ${move.san} çok iyi bir seçim. Bu hamle avantajını koruyor.`;
+            break;
+        case 'best':
+            icon = '✓';
+            commentary = `<strong>En iyi hamle!</strong> ${move.san} pozisyondaki en güçlü hamle. Devam et!`;
+            break;
+        case 'excellent':
+            icon = '✓';
+            commentary = `<strong>Mükemmel!</strong> ${move.san} çok iyi bir hamle. Avantajını sürdürüyorsun.`;
+            break;
+        case 'good':
+            icon = '👍';
+            commentary = `<strong>İyi hamle.</strong> ${move.san} makul bir seçim. Pozisyon dengeli.`;
+            break;
+        case 'book':
+            icon = '📖';
+            commentary = `<strong>Kitap hamlesi.</strong> ${move.san} bilinen bir açılış hamlesi.`;
+            break;
+        case 'inaccuracy':
+            icon = '⚠️';
+            commentary = `<strong>Yanlış.</strong> ${move.san} tam doğru değil (${winPctLoss.toFixed(1)}% kayıp).`;
+            if (bestMoveSAN && bestMoveSAN !== move.san) {
+                commentary += ` Yerine <strong>${bestMoveSAN}</strong> daha iyiydi.`;
+            }
+            break;
+        case 'mistake':
+            icon = '❗';
+            commentary = `<strong>Hata!</strong> ${move.san} zayıf bir hamle (${winPctLoss.toFixed(1)}% kayıp).`;
+            if (bestMoveSAN && bestMoveSAN !== move.san) {
+                commentary += ` Yerine <strong>${bestMoveSAN}</strong> oynayabilirdin.`;
+            }
+            break;
+        case 'blunder':
+            icon = '‼️';
+            commentary = `<strong>Vahim hata!</strong> ${move.san} çok kötü bir hamle (${winPctLoss.toFixed(1)}% kayıp)!`;
+            if (bestMoveSAN && bestMoveSAN !== move.san) {
+                commentary += ` Kesinlikle <strong>${bestMoveSAN}</strong> oynanmalıydı.`;
+            }
+            break;
+        default:
+            commentary = `${move.san} oynandı.`;
+    }
+
+    // Add evaluation context
+    const evalText = Math.abs(result.evaluation) > 5000 
+        ? `Mat ${Math.abs(Math.floor(result.evaluation / 1000))}`
+        : `${(result.evaluation / 100).toFixed(1)}`;
+    
+    const evalColor = result.evaluation > 0 ? 'Beyaz' : 'Siyah';
+    const evalLabel = Math.abs(result.evaluation) > 50 
+        ? `<div class="coach-eval">${evalColor} avantajlı: ${evalText}</div>`
+        : `<div class="coach-eval">Denge: ${evalText}</div>`;
+
+    coachPanel.innerHTML = `
+        <div class="coach-icon">${icon}</div>
+        <div class="coach-text">${commentary}</div>
+        ${evalLabel}
+    `;
+}
+
 function highlightCurrentMove() {
     document.querySelectorAll('.move-item').forEach(item => {
         item.classList.remove('selected');
@@ -677,9 +784,24 @@ function highlightCurrentMove() {
         const currentItem = document.querySelector(`[data-index="${currentMoveIndex}"]`);
         if (currentItem) {
             currentItem.classList.add('selected');
-            currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // Scroll within the moves list container only, not the whole page
+            const movesList = document.getElementById('moves-list');
+            if (movesList) {
+                const containerRect = movesList.getBoundingClientRect();
+                const itemRect = currentItem.getBoundingClientRect();
+                
+                // Only scroll if item is outside visible area of the list
+                if (itemRect.top < containerRect.top) {
+                    movesList.scrollTop -= (containerRect.top - itemRect.top + 20);
+                } else if (itemRect.bottom > containerRect.bottom) {
+                    movesList.scrollTop += (itemRect.bottom - containerRect.bottom + 20);
+                }
+            }
         }
     }
+
+    updateCoachPanel();
 }
 
 function updatePositionInfo() {
@@ -696,6 +818,7 @@ function updatePositionInfo() {
     }
 
     updateEvalBar();
+    updateCoachPanel();
 }
 
 function updateEvalBar() {
